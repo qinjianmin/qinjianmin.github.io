@@ -1,308 +1,41 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  
-  
-  <title>Hexo</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="Hexo">
-<meta property="og:url" content="http://example.com/index.html">
-<meta property="og:site_name" content="Hexo">
-<meta property="og:locale" content="en_US">
-<meta property="article:author" content="John Doe">
-<meta name="twitter:card" content="summary">
-  
-    <link rel="alternate" href="/atom.xml" title="Hexo" type="application/atom+xml">
-  
-  
-    <link rel="shortcut icon" href="/favicon.png">
-  
-  
-    
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css">
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta property="og:type" content="website"><meta property="og:title" content="Jamin&#039;s BlOG"><meta property="og:url" content="http://qinjianmin.github.io/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:author" content="Jamin"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io"},"headline":"Jamin's BlOG","image":["http://qinjianmin.github.io/img/og_image.png"],"author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/img/logo.svg"}},"description":""}</script><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
 
-  
-  
-<link rel="stylesheet" href="/css/style.css">
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
 
-  
-    
-<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
 
-  
-  
-<meta name="generator" content="Hexo 7.0.0"></head>
-
-<body>
-  <div id="container">
-    <div id="wrap">
-      <header id="header">
-  <div id="banner"></div>
-  <div id="header-outer" class="outer">
-    <div id="header-title" class="inner">
-      <h1 id="logo-wrap">
-        <a href="/" id="logo">Hexo</a>
-      </h1>
-      
-    </div>
-    <div id="header-inner" class="inner">
-      <nav id="main-nav">
-        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
-        
-          <a class="main-nav-link" href="/">Home</a>
-        
-          <a class="main-nav-link" href="/archives">Archives</a>
-        
-      </nav>
-      <nav id="sub-nav">
-        
-        
-          <a class="nav-icon" href="/atom.xml" title="RSS Feed"><span class="fa fa-rss"></span></a>
-        
-        <a class="nav-icon nav-search-btn" title="Search"><span class="fa fa-search"></span></a>
-      </nav>
-      <div id="search-form-wrap">
-        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="http://example.com"></form>
-      </div>
-    </div>
-  </div>
-</header>
-
-      <div class="outer">
-        <section id="main">
-  
-    <article id="post-ThreadLocal为什么要这么实现？" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/11/07/ThreadLocal%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E8%BF%99%E4%B9%88%E5%AE%9E%E7%8E%B0%EF%BC%9F/" class="article-date">
-  <time class="dt-published" datetime="2023-11-07T05:57:34.000Z" itemprop="datePublished">2023-11-07</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/11/07/ThreadLocal%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E8%BF%99%E4%B9%88%E5%AE%9E%E7%8E%B0%EF%BC%9F/">ThreadLocal 为什么要这么实现？</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>多线程环境下，编程需要考虑并发安全问题。常规思路是通过锁来实现，ThreadLocal 则提供了另一种线程安全的实现方式：避免共享。<br>通过 ThreadLocal 定义的变量，不同的线程都会拥有这个变量的副本，没有共享，也就没有并发问题了。</p>
-<p>具体的使用方式可以看 JDK 源码中提供的示例，下面这个类中，定义了一个静态私有的 ThreadLocal 变量，为每个线程生成唯一标识。当一个线程首次调用 get 方法时，会调用初始化方法 initialValue，为当前线程分配唯一的 thread id，并且在之后同一个线程再次调用 get 方法时，直接返回这个值。</p>
-<p>这里区分两个概念，一个是 ThreadLocal 变量，一个是 ThreadLocal 变量“包裹”的对象（在这个例子中是一个 Integer 对象）。准确来说，ThreadLocal 变量是唯一的，不同线程持有的是 ThreadLocal “包裹”的对象的副本。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">public class ThreadId &#123;</span><br><span class="line">      // Atomic integer containing the next thread ID to be assigned</span><br><span class="line">      private static final AtomicInteger nextId = new AtomicInteger(0);</span><br><span class="line"> </span><br><span class="line">      // Thread local variable containing each thread&#x27;s ID</span><br><span class="line">      private static final ThreadLocal&lt;Integer&gt; threadId =</span><br><span class="line">          new ThreadLocal&lt;Integer&gt;() &#123;</span><br><span class="line">              @Override protected Integer initialValue() &#123;</span><br><span class="line">                  return nextId.getAndIncrement();</span><br><span class="line">          &#125;</span><br><span class="line">      &#125;;</span><br><span class="line"> </span><br><span class="line">      // Returns the current thread&#x27;s unique ID, assigning it if necessary</span><br><span class="line">      public static int get() &#123;</span><br><span class="line">          return threadId.get();</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="实现原理"><a href="#实现原理" class="headerlink" title="实现原理"></a>实现原理</h1><p>介绍 ThreadLocal 是如何实现的前，可以尝试自己来实现这样的效果。很容易想到，可以在 ThreadLocal 内创建一个 Map，key 是线程，value 是线程持有的变量。示意图如下所示。</p>
-<div align="center">
-<image src="https://raw.githubusercontent.com/qinjianmin/image/main/ThreadLocal%E8%87%AA%E5%AE%9A%E4%B9%89%E5%AE%9E%E7%8E%B0.png">
-
-<p>ThreadLocal 持有 Map</p>
-</div>
-
-<p>但实际上 Java 中的实现，这个 Map 是保存在 Thread 对象中的，key 是 ThreadLocal，value 是线程持有的变量，示意图如下所示，核心代码实现也很简单。</p>
-<div align="center">
-<image src="https://raw.githubusercontent.com/qinjianmin/image/main/ThreadLocal%E5%AE%9E%E7%8E%B0.png">
-
-<p>Thread 持有ThreadLocal Map</p>
-</div>
-
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">public class ThreadLocal&lt;T&gt; &#123;</span><br><span class="line">    public T get() &#123;</span><br><span class="line">        Thread t = Thread.currentThread();</span><br><span class="line">        // 从当前线程中获取 ThreadLocalMap</span><br><span class="line">        ThreadLocalMap map = getMap(t);</span><br><span class="line">        if (map != null) &#123;</span><br><span class="line">            // ThreadLocal 作为 key，从 map 中获取 value</span><br><span class="line">            ThreadLocalMap.Entry e = map.getEntry(this);</span><br><span class="line">            if (e != null) &#123;</span><br><span class="line">                @SuppressWarnings(&quot;unchecked&quot;)</span><br><span class="line">                T result = (T)e.value;</span><br><span class="line">                return result;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        // map 还没初始化，这里执行初始化逻辑</span><br><span class="line">        return setInitialValue();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">     public void set(T value) &#123;</span><br><span class="line">        Thread t = Thread.currentThread();</span><br><span class="line">        ThreadLocalMap map = getMap(t);</span><br><span class="line">        if (map != null)</span><br><span class="line">            map.set(this, value);</span><br><span class="line">        else</span><br><span class="line">            createMap(t, value);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    private T setInitialValue() &#123;</span><br><span class="line">        T value = initialValue();</span><br><span class="line">        Thread t = Thread.currentThread();</span><br><span class="line">        ThreadLocalMap map = getMap(t);</span><br><span class="line">        if (map != null)</span><br><span class="line">            map.set(this, value);</span><br><span class="line">        else</span><br><span class="line">            createMap(t, value);</span><br><span class="line">        return value;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    void createMap(Thread t, T firstValue) &#123;</span><br><span class="line">        t.threadLocals = new ThreadLocalMap(this, firstValue);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public class Thread &#123;</span><br><span class="line"></span><br><span class="line">    ThreadLocal.ThreadLocalMap threadLocals = null;</span><br><span class="line"></span><br><span class="line">    ThreadLocalMap getMap(Thread t) &#123;</span><br><span class="line">        return t.threadLocals;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>Java 中的实现和自定义实现，哪种方式更好呢，显然 Java 的实现更好一点，这里我总结了一下几点优势，这也是为什么 Java 要这样实现 ThreadLocal 的原因。</p>
-<ul>
-<li>ThreadLocal 仅仅作为工具类，不持有任何线程相关的数据，而是将这些数据保存在 Thread 对象中，设计上更加容易理解</li>
-<li>自定义实现中使用需要使用并发安全的 Map 来存放数据，存在锁竞争，而 Java 实现中每个线程对各自数据的读写都是独立的，没有并发问题，性能更好</li>
-<li>自定义实现中，ThreadLocal 对象持有线程引用，通常 ThreadLocal 对象的生命周期要更长，如果线程没有主动删除对应的 key-value，会导致 Thread 对象无法被回收，导致内存泄漏</li>
-</ul>
-<h1 id="内存泄漏"><a href="#内存泄漏" class="headerlink" title="内存泄漏"></a>内存泄漏</h1><p>前面我们提到 Java 这样实现 ThreadLocal 是有助于避免内存泄漏的，因为 Thread 对象持有线程本地数据，当线程销毁后，它所持有的对象副本也会被 GC 回收。</p>
-<p>但前面我们忽略了一点，因为程序中往往是通过线程池来使用线程的，所以线程的生命周期可能也非常长。所以 Thread 对象中持有线程本地数据时，也可能导致内存泄漏。</p>
-<p>所以 Java 实现中还做了一项优化，就是 ThreadLocalMap 中的 Entry 实现为弱引用，通过弱引用指向 key，也就是 ThreadLocal 变量，这样当程序中声明的 ThreadLocal 变量声明周期结束后，因为这里是弱引用，所以可以被顺利回收。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">static class ThreadLocalMap &#123;</span><br><span class="line">        </span><br><span class="line">    static class Entry extends WeakReference&lt;ThreadLocal&lt;?&gt;&gt; &#123;</span><br><span class="line">        /** The value associated with this ThreadLocal. */</span><br><span class="line">        Object value;</span><br><span class="line"></span><br><span class="line">        Entry(ThreadLocal&lt;?&gt; k, Object v) &#123;</span><br><span class="line">                super(k);</span><br><span class="line">                value = v;</span><br><span class="line">        &#125;</span><br><span class="line">     &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>那是否 Java 实现的 ThreadLocal 一定不会发生内存泄漏呢？不是的，因为 ThreadLocalMap 中 Entry 的 value 并不是弱引用，如果程序中没有及时将 value 从 map 中移除，即使 value 的生命周期结束了，也无法被回收，这里还是会发生内存泄漏。为了避免发生这种情况，我们需要在代码中手动释放 Entry 对 value 的强引用，使用示例如下：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">ExecutorService es;</span><br><span class="line">ThreadLocal tl;</span><br><span class="line">es.execute(()-&gt;&#123;</span><br><span class="line">  //ThreadLocal增加变量</span><br><span class="line">  tl.set(obj);</span><br><span class="line">  try &#123;</span><br><span class="line">    // 省略业务逻辑代码</span><br><span class="line">  &#125;finally &#123;</span><br><span class="line">    //手动清理ThreadLocal </span><br><span class="line">    tl.remove();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
-
-<h1 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h1><p>了解了 ThreadLocal 的实现原理，不知道你会不会有这样的疑问，在什么情况下才需要用到 ThreadLocal 呢？如果只是为了避免共享，我直接将要用的变量声明为局部变量不可以吗？</p>
-<p>答案是不可以，考虑这样两种场景：</p>
-<ul>
-<li>这个对象创建过程非常耗时、耗资源，如果每次使用时都重新创建可能导致性能问题</li>
-<li>这个对象只能在某个方法中获取，但需要在很多方法中使用，如果声明为局部变量，则需要在整个链路中所有方法中进行传递，如果这个变量和业务逻辑没有紧密联系，会非常影响代码可读性、可维护性</li>
-</ul>
-<p>所以，通常我们会把一些线程间不需要共享，但在同一线程，多个方法调用中都可能使用到，同时和业务逻辑关系不紧密的数据，放在 ThreadLocal 中。</p>
-<p>看几个具体的例子：</p>
-<ul>
-<li>程序中经常会用 traceId 把一次用户请求在系统中调用的路径串联起来，traceId 信息非常适合通过 ThreadLocal 保存</li>
-<li>用户登陆系统后，针对用户的每次请求，可以从 Session 或者Token 中获取用户信息，保存到 ThreadLocal 中，在需要使用的时候可以很方便的获取到</li>
-<li>从数据库连接池获取链接后，Connection 对象放到 ThreadLocal 中，Spring 的事务管理，底层实现就利用的这样的机制</li>
-</ul>
-<p>使用 ThreadLocal 时，还需要特别注意以下几种情况：</p>
-<ul>
-<li>配合线程池使用时，要知道线程池中的线程生命周期会非常长，会在不同的请求间复用，所以一定要主动 remove 使用完毕的 ThreadLocal 变量，防止内存泄漏，也防止对下次请求造成影响</li>
-<li>异步调用中，ThreadLocal 是无法传递的，要避免在这样的场景中依赖 ThreadLocal 变量，或者手动实现 ThreadLocal 的跨线程传递</li>
-</ul>
-<h1 id="InheritableThreadLocal"><a href="#InheritableThreadLocal" class="headerlink" title="InheritableThreadLocal"></a>InheritableThreadLocal</h1><p>Java 中还提供了一个 InheritableThreadLocal 类来支持父子线程之间线程本地存储变量的继承，InheritableThreadLocal 是 ThreadLocal 的子类，之所以能实现继承特性，其实是在初始化线程时，有一步操作，专门将父线程的成员变量 inheritableThreadLocals 指向的 ThreadLocalMap 中的变量拷贝到了子线程中。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">public class Thread &#123;</span><br><span class="line">     private void init(ThreadGroup g, Runnable target, String name, long stackSize, AccessControlContext acc, boolean inheritThreadLocals) &#123;</span><br><span class="line">        ...</span><br><span class="line">        // 将父线程的 inheritableThreadLocals 指向的 ThreadLocalMap 中的变量拷贝到当前线程</span><br><span class="line">        if (inheritThreadLocals &amp;&amp; parent.inheritableThreadLocals != null)</span><br><span class="line">            this.inheritableThreadLocals =</span><br><span class="line">                ThreadLocal.createInheritedMap(parent.inheritableThreadLocals);</span><br><span class="line">        ...</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>并发编程中，ThreadLocal 通过避免共享的方式实现了线程安全。Java 中 ThreadLocal 的实现，是将线程本地数据通过 ThreadLocalMap 放在的 Thread 对象中，ThreadLocal 变量做 key，ThreadLocal “包裹”的对象副本做 value。并且 ThreadLocalMap 的 Entry 实现为弱引用，指向ThreadLocal 变量，防止内存泄漏。但是要想完全避免内存泄漏，使用时要记得及时释放对 value 的强引用。最后，要记得全链路 traceId，登陆用户信息，Spring 事务中的数据路链接等典型的应用场景</p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2023/11/07/ThreadLocal%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E8%BF%99%E4%B9%88%E5%AE%9E%E7%8E%B0%EF%BC%9F/" data-id="clophbnug00019rtla4270now" data-title="ThreadLocal 为什么要这么实现？" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-    <article id="post-hello-world" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
-  <div class="article-meta">
-    <a href="/2023/11/07/hello-world/" class="article-date">
-  <time class="dt-published" datetime="2023-11-07T05:48:25.982Z" itemprop="datePublished">2023-11-07</time>
-</a>
-    
-  </div>
-  <div class="article-inner">
-    
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="p-name article-title" href="/2023/11/07/hello-world/">Hello World</a>
-    </h1>
-  
-
-      </header>
-    
-    <div class="e-content article-entry" itemprop="articleBody">
-      
-        <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
-    </div>
-    <footer class="article-footer">
-      <a data-url="http://example.com/2023/11/07/hello-world/" data-id="clophbnu900009rtl7078hg23" data-title="Hello World" class="article-share-link"><span class="fa fa-share">Share</span></a>
-      
-      
-      
-    </footer>
-  </div>
-  
-</article>
-
-
-
-  
-
-
-</section>
-        
-          <aside id="sidebar">
-  
-    
-
-  
-    
-
-  
-    
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Archives</h3>
-    <div class="widget">
-      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2023/11/">November 2023</a></li></ul>
-    </div>
-  </div>
-
-
-  
-    
-  <div class="widget-wrap">
-    <h3 class="widget-title">Recent Posts</h3>
-    <div class="widget">
-      <ul>
-        
-          <li>
-            <a href="/2023/11/07/ThreadLocal%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E8%BF%99%E4%B9%88%E5%AE%9E%E7%8E%B0%EF%BC%9F/">ThreadLocal 为什么要这么实现？</a>
-          </li>
-        
-          <li>
-            <a href="/2023/11/07/hello-world/">Hello World</a>
-          </li>
-        
-      </ul>
-    </div>
-  </div>
-
-  
-</aside>
-        
-      </div>
-      <footer id="footer">
-  
-  <div class="outer">
-    <div id="footer-info" class="inner">
-      
-      &copy; 2023 John Doe<br>
-      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
-    </div>
-  </div>
-</footer>
-
-    </div>
-    <nav id="mobile-nav">
-  
-    <a href="/" class="mobile-nav-link">Home</a>
-  
-    <a href="/archives" class="mobile-nav-link">Archives</a>
-  
-</nav>
-    
-
-
-<script src="/js/jquery-3.6.4.min.js"></script>
-
-
-
-  
-<script src="/fancybox/jquery.fancybox.min.js"></script>
-
-
-
-
-<script src="/js/script.js"></script>
-
-
-
-
-
-  </div>
-</body>
-</html>
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-3-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/img/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item is-active" href="/">主页</a><a class="navbar-item" href="/archives">归档</a><a class="navbar-item" href="/categories">分类</a><a class="navbar-item" href="/tags">标签</a></div><div class="navbar-end"><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-6-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item"><time dateTime="2023-11-07T05:57:34.000Z" title="11/7/2023, 1:57:34 PM">2023-11-07</time>发表</span><span class="level-item"><time dateTime="2023-11-11T15:39:58.135Z" title="11/11/2023, 11:39:58 PM">2023-11-11</time>更新</span><span class="level-item"><a class="link-muted" href="/categories/java/">java</a></span><span class="level-item">15 分钟读完 (大约2235个字)</span></div></div><p class="title is-3 is-size-4-mobile"><a class="link-muted" href="/2023/11/07/thread-local/">ThreadLocal 为什么要这么实现？</a></p><div class="content">介绍了 ThreadLocal 实现原理和应用场景</div><a class="article-more button is-small is-size-7" href="/2023/11/07/thread-local/#more">阅读更多</a></article></div></div><div class="column column-left is-4-tablet is-4-desktop is-3-widescreen  order-1 is-sticky"><div class="card widget" data-type="profile"><div class="card-content"><nav class="level"><div class="level-item has-text-centered flex-shrink-1"><div><figure class="image is-128x128 mx-auto mb-2"><img class="avatar is-rounded" src="/img/avatar.jpg" alt="Jamin"></figure><p class="title is-size-4 is-block" style="line-height:inherit;">Jamin</p><p class="is-size-6 is-block">Software Developer</p><p class="is-size-6 is-flex justify-content-center"><i class="fas fa-map-marker-alt mr-1"></i><span>Beijing</span></p></div></div></nav><nav class="level is-mobile"><div class="level-item has-text-centered is-marginless"><div><p class="heading">文章</p><a href="/archives"><p class="title">1</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">分类</p><a href="/categories"><p class="title">1</p></a></div></div><div class="level-item has-text-centered is-marginless"><div><p class="heading">标签</p><a href="/tags"><p class="title">1</p></a></div></div></nav><div class="level"><a class="level-item button is-primary is-rounded" href="https://github.com/qinjianmin" target="_blank" rel="noopener">关注我</a></div></div></div><div class="card widget" data-type="tags"><div class="card-content"><div class="menu"><h3 class="menu-label">标签</h3><div class="field is-grouped is-grouped-multiline"><div class="control"><a class="tags has-addons" href="/tags/ThreadLocal/"><span class="tag">ThreadLocal</span><span class="tag">1</span></a></div></div></div></div></div><div class="column-right-shadow is-hidden-widescreen is-sticky"></div></div><div class="column column-right is-4-tablet is-4-desktop is-3-widescreen is-hidden-touch is-hidden-desktop-only order-3 is-sticky"><!--!--><div class="card widget" data-type="recent-posts"><div class="card-content"><h3 class="menu-label">最新文章</h3><article class="media"><div class="media-content"><p class="date"><time dateTime="2023-11-07T05:57:34.000Z">2023-11-07</time></p><p class="title"><a href="/2023/11/07/thread-local/">ThreadLocal 为什么要这么实现？</a></p><p class="categories"><a href="/categories/java/">java</a></p></div></article></div></div><div class="card widget" data-type="categories"><div class="card-content"><div class="menu"><h3 class="menu-label">分类</h3><ul class="menu-list"><li><a class="level is-mobile" href="/categories/java/"><span class="level-start"><span class="level-item">java</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></div></div></div><div class="card widget" data-type="archives"><div class="card-content"><div class="menu"><h3 class="menu-label">归档</h3><ul class="menu-list"><li><a class="level is-mobile" href="/archives/2023/"><span class="level-start"><span class="level-item">2023</span></span><span class="level-end"><span class="level-item tag">1</span></span></a></li></ul></div></div></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/img/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a><p class="is-size-7"><span>&copy; 2023 Jamin</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">人生如逆旅，我亦是行人</p></div><div class="level-end"></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
