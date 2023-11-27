@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>Redis 做缓存可能面临哪些问题？ - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"><meta property="og:type" content="article"><meta property="og:title" content="Redis 做缓存可能面临哪些问题？"><meta property="og:url" content="http://qinjianmin.github.io/2023/11/13/redis-problem/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"><meta property="og:locale" content="zh_CN"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2023-11-13T06:54:44.000Z"><meta property="article:modified_time" content="2023-11-27T14:05:18.719Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="数据库"><meta property="article:tag" content="Redis"><meta property="article:tag" content="缓存一致性"><meta property="article:tag" content="缓存雪崩"><meta property="article:tag" content="缓存穿透"><meta property="article:tag" content="BigKey"><meta property="article:tag" content="HotKey"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2023/11/13/redis-problem/"},"headline":"Redis 做缓存可能面临哪些问题？","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2023-11-13T06:54:44.000Z","dateModified":"2023-11-27T14:05:18.719Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2023/11/13/redis-problem/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">主页</a><a class="navbar-item" href="/archives">归档</a><a class="navbar-item" href="/categories">分类</a><a class="navbar-item" href="/tags">标签</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="目录" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="搜索" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item"><time dateTime="2023-11-13T06:54:44.000Z" title="11/13/2023, 2:54:44 PM">2023-11-13</time>发表</span><span class="level-item"><time dateTime="2023-11-27T14:05:18.719Z" title="11/27/2023, 10:05:18 PM">2023-11-27</time>更新</span><span class="level-item"><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><span> / </span><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/Redis/">Redis</a></span><span class="level-item">20 分钟读完 (大约3059个字)</span></div></div><h1 class="title is-3 is-size-4-mobile">Redis 做缓存可能面临哪些问题？</h1><div class="content"><p>Redis 做缓存是提升系统性能的利器，但同时也会面临一些问题。本文总结了使用缓存常见的几种问题，以及应对这些问题的方法。</p>
+<h1 id="缓存穿透"><a href="#缓存穿透" class="headerlink" title="缓存穿透"></a>缓存穿透</h1><p>对数据库做缓存时，大部分流量从缓存中返回，少部分未命中缓存的流量才会请求到数据库中，数据库的压力就会比较低。但如果数据在数据库中不存在，自然也不会在缓存中存在，这类流量每次都无法命中缓存，都会请求到数据库中，这样缓存就无法起到降低数据库压力的作用。这种查询不存在数据的现象叫做缓存穿透。</p>
+<p>缓存穿透可能是业务逻辑固有的问题，也可能是恶意攻击导致的。针对这两种情况，可以采取的应对措施也不同。</p>
+<ul>
+<li><p>业务逻辑导致的缓存穿透<br>对返回空的 key 值也进行缓存，注意这里是正常返回但是结果为空的情况，发生异常时不能当作空数据进行缓存。</p>
+</li>
+<li><p>恶意攻击导致的缓存穿透<br>如果是恶意攻击刻意构造不存在的 key 发起请求，缓存空数据的方案就不可行了，这种情况可以借助布隆过滤器来对请求进行一层过滤。</p>
+</li>
+</ul>
+<p>布隆过滤器是用最小代价来判断元素是否存在于某个集合中的方法。虽然维护布隆过滤器需要一定的成本，但是相比攻击导致的资源损耗还是值得的。</p>
+<h1 id="缓存击穿"><a href="#缓存击穿" class="headerlink" title="缓存击穿"></a>缓存击穿</h1><p>如果缓存中的某些热点数据因为某种原因突然失效，比如典型地由于超期而失效，同时又有大量针对该数据的请求发送进来，那么这些请求因为无法命中缓存，都会到达数据库中，导致数据库压力突增，这种现象叫做缓存击穿。</p>
+<p>针对缓存击穿，可以采取两种方案：</p>
+<ol>
+<li>加锁同步<br>当缓存数据失效时，请求会查询数据库，然后再将查询到的数据写会回缓存。如果将这部逻辑通过互斥锁保护起来，这样最多只有一个请求能够达到数据库中，其它请求可以采取阻塞或者重试的策略。注意 redis 是分布式缓存，这里通常需要采用分布式锁来进行保护。</li>
+<li>热点数据手动管理<br>缓存击穿是由于热点数据失效导致的问题，对于这类数据，我们可以通过代码进行有计划的更新，避免自缓存自动失效。</li>
+</ol>
+<h1 id="缓存雪崩"><a href="#缓存雪崩" class="headerlink" title="缓存雪崩"></a>缓存雪崩</h1><p>大批量不同的数据在短时间内一起失效的话，针对这些数据的请求都会击穿缓存，到达数据库，导致数据库压力剧增，这种现象叫过缓存雪崩。</p>
+<p>缓存雪崩可能是由于服务有专门的缓存预热功能，或者大量数据都是由某一次冷操作加载的，这样导致由此载入缓存的数据具有相同的过期时间，在同一时刻一起失效；还可能是缓存服务崩溃重启，造成大量数据同时失效。</p>
+<p>针对缓存雪崩，我们可以采取以下三种方案：</p>
+<ol>
+<li>提升缓存系统的可用性，比如集群部署，支持故障检测、主备切换等；</li>
+<li>使用本地缓存，各个服务节点的本地缓存通常具有不同的加载时间，从而过期时间就会比较分散</li>
+<li>将缓存的过期时间从固定时间改为一个时间段内的随机事件，比如原来是两个小时过期，现在设置为 110 分钟到 130 分钟之间的某个随机值</li>
+</ol>
+<h1 id="缓存污染"><a href="#缓存污染" class="headerlink" title="缓存污染"></a>缓存污染</h1><p>缓存污染是指缓存和数据库数据不一致的现象。通常使用缓存时，不会追求强一致性，但是最终一致性还是需要保证的。</p>
+<p>缓存污染问题通常是由于代码开发不规范导致的，比如更新缓存数据后，由于某些原因，比如业务发生异常回滚，导致数据没有写入数据库中，这时缓存中数据是新的，但是数据库还是就数据。</p>
+<p>为了尽可能保证缓存数据的一致性，业内总结了很多更新缓存的设计模式，包括 Cache Aside、Read&#x2F;Write Through、Write Behind Caching 等等，其中最常用的是 Cache Aside 模式，因为它最简单、成本最低。主要内容可以概括为以下两点：</p>
+<ul>
+<li>读数据时，首先读缓存，没有缓存，再度数据源，然后将数据写入缓存，再响应请求</li>
+<li>写数据时，先写数据源，然后失效缓存</li>
+</ul>
+<p>写数据时，这里要注意两点。</p>
+<p>一个是先后顺序一定是先数据源，再缓存。如果先失效缓存，再更新数据源，一定存在一段时间内缓存已经删除完毕，数据源还未更新。此时如果有读请求进来，无法命中缓存，就会到达数据源中。</p>
+<p>此时读到的还是旧数据，随后又会写到缓存中。等数据更新完成后，就出现了缓存中是旧数据，数据源是新数据，两者数据不一致的情况。</p>
+<p>二是应当失效缓存，而不是更新缓存。因为如果是更新缓存，更新过程中数据源又被其它请求修改，缓存要面临多次赋值的复杂时序问题。如果是失效缓存，则无论这个过程中数据源更新了多少次，都不会产生影响。</p>
+<p>当然，有一种情况下 Cache Aside 模式也会导致数据不一致，就是如果某个数据是从未被缓存过的，或是恰好超期失效，或是恰好因为更新被失效，读请求就会达到数据源中。如果对数据源的又一个写操作正好发生在查询请求之后，结果回填到缓存前，也会出现缓存中数据和数据源不一致的情况。</p>
+<p>相对而言，这种缓存不一致出现的条件更为苛刻一点。通过设置合理的过期时间，可以控制这种情况下的最长影响时间。 通常情况下，Cache Aside 模式依然是一种低成本更新缓存，且能够获得相对可靠结果的解决方案。</p>
+<h1 id="BigKey"><a href="#BigKey" class="headerlink" title="BigKey"></a>BigKey</h1><p>string 类型超过 10KB，hash、list、set、zset 元素个数超过 5000，可以认为是 big key，可能导致 Redis 性能下降。</p>
+<p>BigKey 的产生可能有下面这些原因：</p>
+<ul>
+<li>未正确使用 Redis，如使用 String 类型的 key 存放大体积二进制文件型数据</li>
+<li>业务规划不足，没有对 key 中的成员进行合理的拆分，造成个别 key 中的成员数量过多</li>
+<li>未定期清理无效数据，造成如 HASH 类型 key 中的成员持续不断地增加</li>
+<li>服务发生异常，如使用 LIST 类型 key 的业务消费侧发生代码故障，造成对应key 的成员只增不减</li>
+</ul>
+<p>BigKey 可能导致以下问题：</p>
+<ul>
+<li>大量占用内存，引发操作阻塞或重要的 key被逐出，甚至引发内存溢出</li>
+<li>集群架构下，某个数据分片的内存使用率远超其他数据分片，无法使数据分片的内存资源达到均衡</li>
+<li>命令执行效率下降，如 lrange、hgetall 等时间复杂度为 O(n) 的命令</li>
+<li>对 BigKey 执行读请求，会使 Redis 实例的带宽被占满，影响服务性能</li>
+<li>对 BigKey 执行删除操作，易造成主库较长时间的阻塞，进而可能引发同步中断或主从切换</li>
+<li>BigKey 需要更多的网络带宽来传输可能导致网路阻塞，特别是在进行备份、复制或者集群间数据同步时</li>
+</ul>
+<p>如何定位 BigKey：</p>
+<ul>
+<li>通过 redis-cli 的 bigkeys 参数查找 BigKey</li>
+<li>通过 Redis 内置命令 DEBUG OBJECT、MEMORY USAGESTRLEN、LLEN 等对目标 Key 进行分析</li>
+<li>使用第三方工具redis-rdb-tools，使用过程中会先使用 bgsave 命令dump一个rdb 镜像，然后对这个镜像进行分析</li>
+</ul>
+<p>我们可以参考以下几种方案来解决 BigKey 的问题。</p>
+<p>第一，尝试压缩 value。</p>
+<p>第二，将 BigKey 拆分成多个小 key。</p>
+<p>第三，对 BigKey 进行清理，迁移到其它更适合的存储中。</p>
+<p>第四，对集合中的过期数据进行定期清理。</p>
+<p>第五，删除 BigKey 时，使用 redis4.0 新特性，非阻塞删除。</p>
+<p>第六，监控</p>
+<h1 id="HotKey"><a href="#HotKey" class="headerlink" title="HotKey"></a>HotKey</h1><p>HotKey 是指 Redis 中访问频率特别高的 key。在秒杀、爆款商品、爆款新闻等场景中经常会出现 HotKey，可能导致以下问题：</p>
+<ul>
+<li>占用 Redis server 端大量的 CPU 资源，导致整体性能下降</li>
+<li>如果是集群架构，会产生访问倾斜，某个内存分片被大量访问，可能导致该分片出现连接数耗尽、性能下降等问题</li>
+<li>增加网络流量，可能导致网路阻塞</li>
+<li>出现缓存击穿现象，导致数据库压力突增，影响其它业务</li>
+<li>访问量超出 Redis server 上限，导致服务崩溃，进一步导致缓存雪崩</li>
+</ul>
+<p>如何定位 HotKey：</p>
+<ul>
+<li>通过 redis-cli 的 hotkeys 参数查找 HotKey</li>
+<li>在业务层增加相应的代码对 Redis 的访问进行监控分析</li>
+<li>通过 MONITOR 命令找出 HotKey</li>
+</ul>
+<p>我们可以参考以下几种方案来解决 HotKey 的问题。</p>
+<p>第一，可以增加本地缓存，来降低 HotKey 的访问频率。不过这种方案会面临缓存不一致、消耗本地内存的问题。</p>
+<p>第二，对 HotKey 进行复制，比如将 HotKey foo 复制出 3 个内容完全一样的 Key 并名为 foo2、foo3、foo4。该方案的缺点在于需要联动修改代码，同时也有数据一致性的问题。</p>
+<p>第三，在客户端和 Redis server 间接入 proxy 层，通过 proxy 实现读写分离以及读流量在多个从节点间的负载均衡。在请求量极大的场景下，读写分离架构会产生不可避免的延迟，此时会有读取到脏数据的问题。</p>
+<p>第四，同样是接入 proxy 层，但 proxy 在这里承担缓存 HotKey 查询结果的职责。类似方案一，改进的地方是对业务层是透明的。</p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文总结了 Redis 作为缓存的常见问题及解决方案，不同的业务场景下可能会面临不同的问题，可以采取的方案也不尽相同。可以遵循一个原则进行选择，“能满足需求的前提下，最简单的系统就是最好的系统”。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/328981">分布式缓存如何与本地缓存配合，提高系统性能？</a></li>
+<li><a target="_blank" rel="noopener" href="https://help.aliyun.com/zh/redis/user-guide/identify-and-handle-large-keys-and-hotkeys">发现并处理Redis的大Key和热Key</a></li>
+<li><a target="_blank" rel="noopener" href="https://abhivendrasingh.medium.com/understanding-and-solving-hotkey-and-bigkey-and-issues-in-redis-1198f98b17a5">Understanding and Solving HotKey and BigKey issues in Redis</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.alibabacloud.com/blog/redis-hotspot-key-discovery-and-common-solutions_594446?spm=a2c41.12559851.0.0">Redis Hotspot Key Discovery and Common Solutions</a></li>
+</ol>
+</div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><a class="link-muted mr-2" rel="tag" href="/tags/Redis/">Redis</a><a class="link-muted mr-2" rel="tag" href="/tags/%E7%BC%93%E5%AD%98%E4%B8%80%E8%87%B4%E6%80%A7/">缓存一致性</a><a class="link-muted mr-2" rel="tag" href="/tags/%E7%BC%93%E5%AD%98%E9%9B%AA%E5%B4%A9/">缓存雪崩</a><a class="link-muted mr-2" rel="tag" href="/tags/%E7%BC%93%E5%AD%98%E7%A9%BF%E9%80%8F/">缓存穿透</a><a class="link-muted mr-2" rel="tag" href="/tags/BigKey/">BigKey</a><a class="link-muted mr-2" rel="tag" href="/tags/HotKey/">HotKey</a></div><!--!--></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2023/11/07/thread-local/"><span class="level-item">ThreadLocal 为什么要这么实现？</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--></div><!--!--><div class="column column-right is-4-tablet is-4-desktop is-4-widescreen  order-3 is-sticky"><div class="card widget" id="toc" data-type="toc"><div class="card-content"><div class="menu"><h3 class="menu-label">目录</h3><ul class="menu-list"><li><a class="level is-mobile" href="#缓存穿透"><span class="level-left"><span class="level-item">1</span><span class="level-item">缓存穿透</span></span></a></li><li><a class="level is-mobile" href="#缓存击穿"><span class="level-left"><span class="level-item">2</span><span class="level-item">缓存击穿</span></span></a></li><li><a class="level is-mobile" href="#缓存雪崩"><span class="level-left"><span class="level-item">3</span><span class="level-item">缓存雪崩</span></span></a></li><li><a class="level is-mobile" href="#缓存污染"><span class="level-left"><span class="level-item">4</span><span class="level-item">缓存污染</span></span></a></li><li><a class="level is-mobile" href="#BigKey"><span class="level-left"><span class="level-item">5</span><span class="level-item">BigKey</span></span></a></li><li><a class="level is-mobile" href="#HotKey"><span class="level-left"><span class="level-item">6</span><span class="level-item">HotKey</span></span></a></li><li><a class="level is-mobile" href="#总结"><span class="level-left"><span class="level-item">7</span><span class="level-item">总结</span></span></a></li><li><a class="level is-mobile" href="#参考"><span class="level-left"><span class="level-item">8</span><span class="level-item">参考</span></span></a></li></ul></div></div><style>#toc .menu-list > li > a.is-active + .menu-list { display: block; }#toc .menu-list > li > a + .menu-list { display: none; }</style><script src="/js/toc.js" defer></script></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a><p class="is-size-7"><span>&copy; 2023 Jamin</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">人生如逆旅，我亦是行人</p></div><div class="level-end"></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("zh-cn");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="回到顶端" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="想要查找什么..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"想要查找什么...","untitled":"(无标题)","posts":"文章","pages":"页面","categories":"分类","tags":"标签"});
+        });</script></body></html>
