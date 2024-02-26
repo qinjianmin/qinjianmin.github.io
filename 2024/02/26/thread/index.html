@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>深入理解 Java 线程 - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本文结合 Thread 类源码，介绍下 Java 中创建线程的方式，线程生命周期，线程状态转换、线程中断、线程异常处理等知识点，以及为什么 stop、suspend 等方式被标注为过时，最后会讨论并发编程中，创建多少线程才是合适的。"><meta property="og:type" content="article"><meta property="og:title" content="深入理解 Java 线程"><meta property="og:url" content="http://qinjianmin.github.io/2024/02/26/thread/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="本文结合 Thread 类源码，介绍下 Java 中创建线程的方式，线程生命周期，线程状态转换、线程中断、线程异常处理等知识点，以及为什么 stop、suspend 等方式被标注为过时，最后会讨论并发编程中，创建多少线程才是合适的。"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2024-02-26T11:41:09.000Z"><meta property="article:modified_time" content="2024-02-26T14:44:24.788Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="Thread"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2024/02/26/thread/"},"headline":"深入理解 Java 线程","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2024-02-26T11:41:09.000Z","dateModified":"2024-02-26T14:44:24.788Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"本文结合 Thread 类源码，介绍下 Java 中创建线程的方式，线程生命周期，线程状态转换、线程中断、线程异常处理等知识点，以及为什么 stop、suspend 等方式被标注为过时，最后会讨论并发编程中，创建多少线程才是合适的。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2024/02/26/thread/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2024-02-26T11:41:09.000Z" title="2/26/2024, 7:41:09 PM">2024-02-26</time></span><span class="level-item">Updated&nbsp;<time dateTime="2024-02-26T14:44:24.788Z" title="2/26/2024, 10:44:24 PM">2024-02-26</time></span><span class="level-item"><a class="link-muted" href="/categories/Java/">Java</a><span> / </span><a class="link-muted" href="/categories/Java/%E5%B9%B6%E5%8F%91/">并发</a></span><span class="level-item">28 minutes read (About 4199 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">深入理解 Java 线程</h1><div class="content"><h1 id="线程创建方式"><a href="#线程创建方式" class="headerlink" title="线程创建方式"></a>线程创建方式</h1><p>Java 中创建线程有两种方式。第一种是定义 Thread 类的一个子类，在子类中重写 run 方法。然后创建子类实例后调用子类的 start 方法。示例如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">class PrimeThread extends Thread &#123;</span><br><span class="line">    long minPrime;</span><br><span class="line">    PrimeThread(long minPrime) &#123;</span><br><span class="line">        this.minPrime = minPrime;</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">    public void run() &#123;</span><br><span class="line">        // compute primes larger than minPrime</span><br><span class="line">        . . .</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"> PrimeThread p = new PrimeThread(143);</span><br><span class="line"> p.start();</span><br></pre></td></tr></table></figure>
+
+<p>另一种创建线程的方式是定义 Runnable 接口的实现类，并实现 run 方法。然后将这个实现类的实例作为构造 Thread 对象的参数，然后调用 Thread 对象的 start 方法。示例如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">class PrimeRun implements Runnable &#123;</span><br><span class="line">    long minPrime;</span><br><span class="line">    PrimeRun(long minPrime) &#123;</span><br><span class="line">        this.minPrime = minPrime;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public void run() &#123;</span><br><span class="line">        // compute primes larger than minPrime</span><br><span class="line">        . . .</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">PrimeRun p = new PrimeRun(143);</span><br><span class="line">new Thread(p).start();</span><br></pre></td></tr></table></figure>
+<p>了解了上面的内容，可以说就已经掌握了 Java 中线程的使用方式。接下来介绍下线程的生命周期。</p>
+<h1 id="线程生命周期"><a href="#线程生命周期" class="headerlink" title="线程生命周期"></a>线程生命周期</h1><h2 id="五态模型"><a href="#五态模型" class="headerlink" title="五态模型"></a>五态模型</h2><p>通用的线程生命周期可以用“五态模型”来描述。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/comon-thread-state.png?raw=true"/>
+</div>
+
+<ul>
+<li>初始状态<br>线程已经创建，但是还不允许分配 CPU 执行。这个状态是编程语言特特有的，这里的被创建，指的是在编程语言层面被创建，在操作系统层，真正的线程还没有创建</li>
+<li>可运行状态<br>可以被分配 CPU 执行，这种状态下，真正的操作系统线程已经被创建</li>
+<li>运行状态<br>被分配到 CPU 的线程状态转换为运行状态</li>
+<li>休眠状态<br>运行状态的线程如果调用一个阻塞的 API（利用以阻塞的方式读取文件）或者等待某个事件（例如条件变量），那么线程转换为休眠状态并释放 CPU 的使用权，休眠状态的线程永远无法获取 CPU 使用权。<br>当等待的事件出现后，线程会从休眠状态转变为可运行状态。</li>
+<li>终止状态<br>当线程执行完或者出现异常，线程进入终止状态。终止状态无法切换为任何其它状态，进入终止状态就意味着线程的生命周期结束了。</li>
+</ul>
+<h1 id="Java-中的线程的生命周期"><a href="#Java-中的线程的生命周期" class="headerlink" title="Java 中的线程的生命周期"></a>Java 中的线程的生命周期</h1><p>Java 语言中线程共有六种状态。</p>
+<ul>
+<li>NEW（初始化状态）</li>
+<li>RUNNABLE（可运行 &#x2F; 运行状态）</li>
+<li>BLOCKED（阻塞状态）</li>
+<li>WAITING（无时限等待）</li>
+<li>TIMED_WAITING（有时限等待）</li>
+<li>TERMINATED（终止状态）</li>
+</ul>
+<p>相比于五态模型，Java 语言里把可运行状态和运行状态合并了，这两个状态在操作系统调度层面有用，而 JVM 层面不关心这两个状态，因为 JVM 把线程调度交给操作系统处理了。</p>
+<p>除此以外，Java 语言中细化了休眠状态。Java 线程中的 BLOCKED、WAITING、TIMED_WAITING 都对应操作系统层面的休眠状态。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/java-thread-state.png?raw=true"/>
+</div>
+
+<h2 id="Java-中线程状态转换"><a href="#Java-中线程状态转换" class="headerlink" title="Java 中线程状态转换"></a>Java 中线程状态转换</h2><p>1）RUNNABLE 和 BLOCKED 的转换</p>
+<ul>
+<li>线程等待 synchronized 的隐式锁时</li>
+</ul>
+<p>2）RUNNABLE 和 WAITING 的转换</p>
+<ul>
+<li>获得 synchronized 隐式锁的线程，调用无参数的 Object.wait() 方法</li>
+<li>调用无参数的 Thread.join() 方法</li>
+<li>调用 LockSupport.park() 方法</li>
+</ul>
+<p>3）RUNNABLE 和 TIMED_WAITING 的转换</p>
+<ul>
+<li>调用带超时参数的 Thread.sleep(long millis) 方法</li>
+<li>获得 synchronized 隐式锁的线程，调用带超时参数的 Object.wait(long timeout) 方法</li>
+<li>调用带超时参数的 Thread.join(long millis) 方法</li>
+<li>调用带超时参数的 LockSupport.parkNanos(Object blocker, long deadline) 方法</li>
+<li>调用带超时参数的 LockSupport.parkUntil(Object blocker, long deadline) 方法</li>
+</ul>
+<p>4）NEW 到 RUNNABLE 状态</p>
+<ul>
+<li>调用线程对象的 start() 方法</li>
+</ul>
+<p>5）RUNNABLE 到 TERMINATED 状态</p>
+<ul>
+<li>执行完 run() 方法</li>
+<li>执行 run() 方法的时候异常抛出</li>
+</ul>
+<p>需要注意的是，当线程调用阻塞式 API 时，是否会转换到 BLOCKED 状态呢？</p>
+<p>在操作系统层面，线程是会转换到休眠状态的，但是在 JVM 层面，Java 线程的状态不会发生变化，也就是说 Java 线程的状态会依然保持 RUNNABLE 状态。JVM 层面并不关心操作系统调度相关的状态，因为在 JVM 看来，等待 CPU 使用权（操作系统层面此时处于可执行状态）与等待 I&#x2F;O（操作系统层面此时处于休眠状态）没有区别，都是在等待某个资源，所以都归入了 RUNNABLE 状态。</p>
+<p>可见 Java 线程状态只是 JVM 的内部定义，和操作系统线程状态没有严格的对应关系，这里的 RUNNABLE 就对应了操作系统中的可运行状态、运行状态和部分休眠状态。</p>
+<p>了解完 Java 线程状态，可能会有这样的疑问，为什么单单只有 synchronized 获取锁阻塞时，状态是 BLOCKED，而 JUC 中的锁阻塞时、或者阻塞在条件变量上时，状态是 WAITING 呢？</p>
+<p>因为在最初的设计 synchronized 时，BLOCKED 表示锁阻塞，WAITING 表示条件变量阻塞，这样区分开是可以理解的，但 JUC 中提供阻塞线程的方法时，底层都是调用的 Unsafe 类的 park 方法，实现 park 方式时，就只能选择一种，JVM 就任选了其中之一。</p>
+<p>接下来，我们结合 Thread 类源码，看下其中关键方法的实现。</p>
+<h1 id="构造方法"><a href="#构造方法" class="headerlink" title="构造方法"></a>构造方法</h1><p>首先是构造方法，Thread 类中提供了多个重载的构造方法，可以设置线程的线程组、任务、名称、栈深度等，最终会调用到 init 方法初始化参数。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">private void init(ThreadGroup g, Runnable target, String name,</span><br><span class="line">                  long stackSize, AccessControlContext acc,</span><br><span class="line">                  boolean inheritThreadLocals) &#123;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>ThreadGroup g</li>
+</ul>
+<p>线程组，用于批量管理线程。每个线程都属于一个线程组，如果没有指定，默认会将创建线程的线程的线程组设置为新建的这个线程的线程组</p>
+<ul>
+<li>Runnable target</li>
+</ul>
+<p>线程执行的任务。前面介绍过两种创建线程的方式，其中之一就是将 Runnable 的实现类对象作为创建线程的参数。Thread 类本身实现了 Runnable 接口，线程启动后，会执行 Thread 类的 run 方法。run 方法的默认实现就是，如果 target 不为 null，则调用 target 的 run 方法</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">public void run() &#123;</span><br><span class="line">    if (target != null) &#123;</span><br><span class="line">        target.run();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>String name</li>
+</ul>
+<p>线程名称。如果没有指定，默认会使用如下形式。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">public Thread() &#123;</span><br><span class="line">    init(null, null, &quot;Thread-&quot; + nextThreadNum(), 0);</span><br><span class="line">&#125;</span><br><span class="line">private static synchronized int nextThreadNum() &#123;</span><br><span class="line">    return threadInitNumber++;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>long stackSize</li>
+</ul>
+<p>线程栈深度。如果是 0，表示创建时没有指定；即使指定了，能发挥什么作用取决于虚拟机的具体实现，一些虚拟机会忽略它。</p>
+<h1 id="线程中断"><a href="#线程中断" class="headerlink" title="线程中断"></a>线程中断</h1><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">public void interrupt() &#123;</span><br><span class="line">    if (this != Thread.currentThread())</span><br><span class="line">        checkAccess();</span><br><span class="line"></span><br><span class="line">    synchronized (blockerLock) &#123;</span><br><span class="line">        Interruptible b = blocker;</span><br><span class="line">        if (b != null) &#123;</span><br><span class="line">            interrupt0();           // Just to set the interrupt flag</span><br><span class="line">            b.interrupt(this);</span><br><span class="line">            return;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    interrupt0();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以从以下几个方面来理解线程中断。</p>
+<p>1）谁有权利中断一个线程</p>
+<p>线程中断自身肯定是被允许的，否则会通过 checkAccess 方法来检查权限。</p>
+<p>2）中断的效果</p>
+<ul>
+<li><p>如果线程不是 alive 状态（isAlive() 方法返回 true，表示线程处于 alive 状态，也就是说线程已经开始，但还没有结束），调用这个方法没有任何影响</p>
+</li>
+<li><p>如果线程阻塞在 wait()、wait(long)、wait(long, int)、join()、join(long)、join(long, int)、sleep(long) 或者 sleep(long, int) 方法上，将会清除中断状态并收到 InterruptedException</p>
+</li>
+<li><p>如果线程阻塞在 InterruptibleChannel 的 I&#x2F;O 操作上，那么这个通道将会被关闭，设置线程中断状态，并且线程会收到 java.nio.channels.ClosedByInterruptException</p>
+</li>
+<li><p>如果线程阻塞在 java.nio.channels.Selector 上，将会设置线程中断状态，然后立即从 selection 操作返回，返回值可能是一个非零值，就像调用wakeup 方法一样</p>
+</li>
+<li><p>如果不是以上这些情况，会设置线程的中断状态</p>
+</li>
+</ul>
+<p>3）检查线程中断</p>
+<p>当线程发生中断时，除了上面提到的几种抛出异常的场景外，我们需要通过轮询中断状态来感知中断的发生，也就是在合适的时机（通常放在循环的开始处）去判断线程的中断状态，然后做对应的操作（抛出异常或直接返回）。</p>
+<p>Thread 类中提供了以下两个检查中断状态的的方法，他们的区别在于前者是静态方法切会清除中断状态，后者是实例方法且不会清楚中断状态。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">public static boolean interrupted() &#123;</span><br><span class="line">    return currentThread().isInterrupted(true);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">public boolean isInterrupted() &#123;</span><br><span class="line">    return isInterrupted(false);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>4）中断的作用</p>
+<p>中断机制提供了一种线程通知的机制，可以用来唤醒阻塞的线程、终止线程任务等。中断只是给线程发出一个通知，其效果是依赖线程自身的中断检测逻辑的，也就是说中断后进行什么操作是由线程自身决定的。相比 suspend()、stop() 等方式更加的温和，不会出现死锁等问题。关于  suspend()、stop() 等方法的问题后文中有详细介绍。</p>
+<h1 id="Thread-类常用方法"><a href="#Thread-类常用方法" class="headerlink" title="Thread 类常用方法"></a>Thread 类常用方法</h1><ul>
+<li>（static）yeild()</li>
+</ul>
+<p>yeild() 提示 JVM 线程调度器，当前线程想要让出 CPU 的使用权，但是线程调度器可以忽略这一提示。</p>
+<p>这是一个启发式的尝试，避免某个线程对 CPU 的过度使用。它的使用应与详细的分析和基准测试相结合，以确保它实际上具有预期的效果。</p>
+<p>实际上很少有合适的场合会使用这个方法。它通常被用于调试或者测试，帮助复现多线程中的 bug。在实现并发工具时这个方法可能很有用， java.util.concurrent.locks 包中的很多类用到了它。</p>
+<ul>
+<li>（static）sleep(long)、sleep(long, int)</li>
+</ul>
+<p>使正在运行的线程暂时停止执行一段时间（受系统定时器和调度器的精度和准确性影响）。sleep 的线程并不会释放它持有的锁。</p>
+<ul>
+<li>join()、join(long)、join(long, int)</li>
+</ul>
+<p>等待线程执行结束。底层实现实际上是循环检查 isAlive 方法，不满足条件时，调用线程对象的 wait 方法阻塞调用方，线程终止时会调用 notifyAll 方法唤醒阻塞的线程。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">public final synchronized void join(long millis)</span><br><span class="line">throws InterruptedException &#123;</span><br><span class="line">    long base = System.currentTimeMillis();</span><br><span class="line">    long now = 0;</span><br><span class="line"></span><br><span class="line">    if (millis &lt; 0) &#123;</span><br><span class="line">        throw new IllegalArgumentException(&quot;timeout value is negative&quot;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    if (millis == 0) &#123;</span><br><span class="line">        while (isAlive()) &#123;</span><br><span class="line">            wait(0);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; else &#123;</span><br><span class="line">        while (isAlive()) &#123;</span><br><span class="line">            long delay = millis - now;</span><br><span class="line">            if (delay &lt;= 0) &#123;</span><br><span class="line">                break;</span><br><span class="line">            &#125;</span><br><span class="line">            wait(delay);</span><br><span class="line">            now = System.currentTimeMillis() - base;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="Thread-类中的过时方法"><a href="#Thread-类中的过时方法" class="headerlink" title="Thread 类中的过时方法"></a>Thread 类中的过时方法</h1><ul>
+<li>suspend() 和 resume()</li>
+</ul>
+<p>suspend 用于挂起一个线程，与之对应的，resume 方法用于恢复挂起的线程。</p>
+<p>之所以被弃用，因为这两个方法可能导致线程死锁。挂起的线程不会释放锁资源，如果被挂起的线程持有某个锁，而计划执行 resume 方法的线程需要首先获取这个锁资源，就发生了死锁。</p>
+<ul>
+<li>stop()</li>
+</ul>
+<p>stop 方法使线程抛出 ThreadDeath 异常，导致线程直接终止。如果线程还没有开始就调用了 stop 方法，那么线程开始后会立刻终止。通常应用程序不应该捕获 ThreadDeath 异常，除非想要在线程终止前做一些额外的清理操作，如果捕获了 ThreadDeath，应该重新抛出这个异常，以确保线程能最终终止。</p>
+<p>这个方法之所以被弃用，因为它是不安全的。调用 stop 方法后，线程会释放所有持有的锁，这些锁保护的资源可能正处于不一致的状态，这些损坏的对象将对其它线程可见，从而导致不可预料的行为。使用 stop 方法的场景，可以使用中断通知来完成，执行任务的线程检查到中断状态后，能够完成收尾工作，再停止运行。</p>
+<h1 id="异常处理"><a href="#异常处理" class="headerlink" title="异常处理"></a>异常处理</h1><p>接下来，介绍下 Java 线程中的异常处理机制。</p>
+<p>当线程因为未捕获异常终止时，虚拟机会通过线程的 getUncaughtExceptionHandler 方法获取线程的 uncaughtExceptionHandler，并调用其 uncaughtException 方法来处理异常；</p>
+<p>如果没有显示设置 uncaughtExceptionHandler，getUncaughtExceptionHandler 方法会返回线程的 ThreadGroup 对象；</p>
+<p>ThreadGroup 的 uncaughtException 方法的实现逻辑为：</p>
+<ul>
+<li><p>如果存在父线程组，调用父线程组的 uncaughtException 方法</p>
+</li>
+<li><p>否则通过线程的 getDefaultUncaughtExceptionHandler 方法，获取线程的 defaultUncaughtExceptionHandler</p>
+</li>
+<li><p>如果显示设置 defaultUncaughtExceptionHandler，调用其 uncaughtException 方法来处理异常</p>
+</li>
+<li><p>否则判断异常是否是 ThreadDeath</p>
+</li>
+<li><p>是的话不做任何处理</p>
+</li>
+<li><p>否则通过标准错误输出打印异常信息</p>
+</li>
+</ul>
+<p>注意，通常我们需要在执行的 run 方法中主动捕获异常，因为线程默认的异常处理会将异常信息出处到标准错误，在生产环境中往往会被丢弃，导致我们无法定位异常原因。</p>
+<h1 id="创建多少线程合适？"><a href="#创建多少线程合适？" class="headerlink" title="创建多少线程合适？"></a>创建多少线程合适？</h1><p>最后，我们来看一个问题。我们使用多线程，是为更有效地利用系统资源，提高程序的响应速度和吞吐量，那么创建多少线程合适呢？是不是越多越好呢？</p>
+<p>显然不是，多线程能够提升CPU 的利用率和 I&#x2F;O 的利用率，但如果某个资源已经达到了瓶颈，再增加线程不但不会提升性能，还会使性能变得更差，原因是增加了线程切换的成本。所以创建多少线程合适，要看多线程具体的应用场景。</p>
+<p>1）对于CPU密集型任务，设置为和 CPU 核心数相当或稍大，就可以充分利用CPU资源；</p>
+<p>2）对于IO密集型任务，我们可以将线程池适当开大点，以便众多线程轮流使用CPU，提升CPU利用率，理论上来说可以遵循以下公式来设置线程数：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">pool_size = N * (cpu_time + io_time) / cpu_time</span><br></pre></td></tr></table></figure>
+<p>应用上述公式有两个前提，一是没有瓶颈资源，任务执行依赖的资源能够满足所有的线程，二是没有瓶颈操作，任务的执行效率不会随着线程数增加而下降。</p>
+<p>瓶颈资源很好理解，这个公式是为了让 CPU 的利用率达到 100%，但如果在这之前 IO 资源已经成了瓶颈，或者线程执行任务依赖的其它资源，比如数据库连接池，达到了瓶颈状态，这种情况下增加更多线程并不会提升性能。</p>
+<p>瓶颈操作怎么理解呢？我们使用多线程本质上是一种并行优化，但如果线程执行的任务存在必须串行执行的部分，当代码执行到这部分逻辑时，即使在执行 IO 操作时把 CPU 资源让了出来，其他线程因为拿不到锁，也无法使用 CPU 资源。这种情况下增加更多线程也不会增加性能。</p>
+<p>4）很多情况下，对于 io_time 和 cpu_time 的比例，以及是否有瓶颈操作和资源，不太容易得出准确的估计，通常我们会根据经验值进行设置，然后做好监控统计，随时调整优化线程数；</p>
+<p>5）在一些比较重要的业务场景下，或者说线程数量设置不准确，可能导致非常大的影响时，我们需要通过压测来确定线程数，保证服务稳定性；</p>
+<p>6）最后，业务流量、io_time和cpu_time的比例、任务执行的瓶颈操作和瓶颈资源也不是一成不变的，所以做好监控，按需调整是非常有必要的。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/86666">Java线程（中）：创建多少线程才是合适的？</a></li>
+<li><a hfef="https://docs.oracle.com/javase/8/docs/api/java/lang/Thread.html">Thread</a></li>
+</ol>
+</div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/Thread/">Thread</a></div><!--!--></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/2024/02/26/db-sharding/"><i class="level-item fas fa-chevron-left"></i><span class="level-item">分库分表实战</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2024/02/05/ddd/"><span class="level-item">业务开发中如何应用设计原则、思想提升代码质量</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--></div><!--!--><div class="column column-right is-4-tablet is-4-desktop is-4-widescreen  order-3 is-sticky"><div class="card widget" id="toc" data-type="toc"><div class="card-content"><div class="menu"><h3 class="menu-label">Catalogue</h3><ul class="menu-list"><li><a class="level is-mobile" href="#线程创建方式"><span class="level-left"><span class="level-item">1</span><span class="level-item">线程创建方式</span></span></a></li><li><a class="level is-mobile" href="#线程生命周期"><span class="level-left"><span class="level-item">2</span><span class="level-item">线程生命周期</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#五态模型"><span class="level-left"><span class="level-item">2.1</span><span class="level-item">五态模型</span></span></a></li></ul></li><li><a class="level is-mobile" href="#Java-中的线程的生命周期"><span class="level-left"><span class="level-item">3</span><span class="level-item">Java 中的线程的生命周期</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#Java-中线程状态转换"><span class="level-left"><span class="level-item">3.1</span><span class="level-item">Java 中线程状态转换</span></span></a></li></ul></li><li><a class="level is-mobile" href="#构造方法"><span class="level-left"><span class="level-item">4</span><span class="level-item">构造方法</span></span></a></li><li><a class="level is-mobile" href="#线程中断"><span class="level-left"><span class="level-item">5</span><span class="level-item">线程中断</span></span></a></li><li><a class="level is-mobile" href="#Thread-类常用方法"><span class="level-left"><span class="level-item">6</span><span class="level-item">Thread 类常用方法</span></span></a></li><li><a class="level is-mobile" href="#Thread-类中的过时方法"><span class="level-left"><span class="level-item">7</span><span class="level-item">Thread 类中的过时方法</span></span></a></li><li><a class="level is-mobile" href="#异常处理"><span class="level-left"><span class="level-item">8</span><span class="level-item">异常处理</span></span></a></li><li><a class="level is-mobile" href="#创建多少线程合适？"><span class="level-left"><span class="level-item">9</span><span class="level-item">创建多少线程合适？</span></span></a></li><li><a class="level is-mobile" href="#参考"><span class="level-left"><span class="level-item">10</span><span class="level-item">参考</span></span></a></li></ul></div></div><style>#toc .menu-list > li > a.is-active + .menu-list { display: block; }#toc .menu-list > li > a + .menu-list { display: none; }</style><script src="/js/toc.js" defer></script></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a><p class="is-size-7"><span>&copy; 2024 Jamin</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">人生如逆旅，我亦是行人</p></div><div class="level-end"></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("en");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="Back to top" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="Type something..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"Type something...","untitled":"(Untitled)","posts":"Posts","pages":"Pages","categories":"Categories","tags":"Tags"});
+        });</script></body></html>
