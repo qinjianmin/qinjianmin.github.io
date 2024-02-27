@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>服务上云那些事 - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="出于业务发展的需要，我有过一次将整体服务迁移至 AWS 公有云平台的经历，包括服务部署机器、数据库、中间件以及其他辅助平台，整体都要在 AWS 公有云重建或者重新进行技术选型和替换。整个过程非常复杂，在这篇文章中，我将分享下这次服务上云的实践经验。"><meta property="og:type" content="article"><meta property="og:title" content="服务上云那些事"><meta property="og:url" content="http://qinjianmin.github.io/2024/02/27/service-migration/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="出于业务发展的需要，我有过一次将整体服务迁移至 AWS 公有云平台的经历，包括服务部署机器、数据库、中间件以及其他辅助平台，整体都要在 AWS 公有云重建或者重新进行技术选型和替换。整个过程非常复杂，在这篇文章中，我将分享下这次服务上云的实践经验。"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2024-02-26T16:24:37.000Z"><meta property="article:modified_time" content="2024-02-27T03:12:47.461Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="服务迁移"><meta property="article:tag" content="数据库迁移"><meta property="article:tag" content="AWS"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2024/02/27/service-migration/"},"headline":"服务上云那些事","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2024-02-26T16:24:37.000Z","dateModified":"2024-02-27T03:12:47.461Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"出于业务发展的需要，我有过一次将整体服务迁移至 AWS 公有云平台的经历，包括服务部署机器、数据库、中间件以及其他辅助平台，整体都要在 AWS 公有云重建或者重新进行技术选型和替换。整个过程非常复杂，在这篇文章中，我将分享下这次服务上云的实践经验。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2024/02/27/service-migration/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2024-02-26T16:24:37.000Z" title="2/27/2024, 12:24:37 AM">2024-02-27</time></span><span class="level-item">Updated&nbsp;<time dateTime="2024-02-27T03:12:47.461Z" title="2/27/2024, 11:12:47 AM">2024-02-27</time></span><span class="level-item"><a class="link-muted" href="/categories/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98/">项目实战</a></span><span class="level-item">28 minutes read (About 4262 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">服务上云那些事</h1><div class="content"><h1 id="背景和挑战"><a href="#背景和挑战" class="headerlink" title="背景和挑战"></a>背景和挑战</h1><p>我们的服务是一款海外短视频产品，日活 1500 万，印度市场排名第二，是 ** 公司日活最高、数据最好的出圈产品。当时因为业务计划出售，需要最高优先级将后端服务迁移到 AWS 公有云。整个迁移工作面临以下几个挑战：</p>
+<ul>
+<li><p>迁移周期短</p>
+</li>
+<li><p>迁移和业务增长并行</p>
+</li>
+<li><p>数据量大、并发高</p>
+</li>
+<li><p>跨团队、跨部门、跨公司协作<br>由于用户规模大、业务场景复杂、数据量大、请求并发高，要在短时间内完成迁移工作，保证服务迁移和业务增长并行，同时保证服务的稳定性，是一个很大的挑战。</p>
+</li>
+</ul>
+<h1 id="迁移方案"><a href="#迁移方案" class="headerlink" title="迁移方案"></a>迁移方案</h1><h2 id="原服务架构"><a href="#原服务架构" class="headerlink" title="原服务架构"></a>原服务架构</h2><div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/1.jpeg?raw=true"/>
+</div>
+
+<p>上图是原服务架构。承接了 1500 万日活，接入层服务峰值 QPS 136k，首页 Feed 流峰值 QPS 3.8k，使用 10 个MySQL 集群，约 5.7T 数据，5 个 Redis 集群，约 750G 数据，2 个 MongoDB 集群，约 100G 数据，4 个 ES 索引，约 280G 数据，1 个 Hbase 集群，约 180G 数据。</p>
+<h2 id="迁移技术评估"><a href="#迁移技术评估" class="headerlink" title="迁移技术评估"></a>迁移技术评估</h2><p>迁移涉及到的组件技术选型和难度评估如下表所示。</p>
+<table>
+<thead>
+<tr>
+<th>自建云平台</th>
+<th>AWS</th>
+<th>迁移技术要点</th>
+<th>迁移技术难度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>云主机</td>
+<td>Amazon EC2</td>
+<td>平滑迁移</td>
+<td>低</td>
+</tr>
+<tr>
+<td>负载均衡器</td>
+<td>Amazon ELB</td>
+<td>平滑迁移</td>
+<td>低</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>Amazon Aurora</td>
+<td>平滑迁移</td>
+<td>中</td>
+</tr>
+<tr>
+<td>MongoDB</td>
+<td>Amazon DocumentDB<br>MongoDB on EC2</td>
+<td>平滑迁移，修改部分代码<br>平滑迁移，修改部分代码，维护工作大</td>
+<td>中<br>低</td>
+</tr>
+<tr>
+<td>Redis</td>
+<td>Amazon ElastiCache for Redis<br>Redis on EC2</td>
+<td>平滑迁移，修改部分代码<br>平滑迁移，修改部分代码，维护工作大</td>
+<td>低<br>低</td>
+</tr>
+<tr>
+<td>RocketMQ</td>
+<td>Amazon SQS</td>
+<td>重新技术选型，修改较多代码</td>
+<td>高</td>
+</tr>
+<tr>
+<td>Talos</td>
+<td>AWS Kinesis&#x2F;Amazon MSK</td>
+<td>重新技术选型，修改较多代码</td>
+<td>高</td>
+</tr>
+<tr>
+<td>EMQ</td>
+<td>Amazon SQS</td>
+<td>重新技术选型，修改较多代码</td>
+<td>高</td>
+</tr>
+<tr>
+<td>Elasticsearch</td>
+<td>Amazon OpenSearch</td>
+<td>平滑迁移，修改部分代码</td>
+<td>中</td>
+</tr>
+<tr>
+<td>FDS</td>
+<td>Amazon S3</td>
+<td>重新技术选型，修改较多代码</td>
+<td>低</td>
+</tr>
+<tr>
+<td>HBase</td>
+<td>Amazon EMR HBase on S3<br>DynamoDB<br>Hbase on EC2</td>
+<td>平滑迁移，修改部分代码<br>重新技术选型，修改较多代码<br>平滑迁移，修改部分代码，维护工作大</td>
+<td>中<br>高<br>低</td>
+</tr>
+<tr>
+<td>短信服务</td>
+<td>Amazon Pinpoint</td>
+<td>重新技术选型，修改部分代码</td>
+<td>低</td>
+</tr>
+</tbody></table>
+<h2 id="迁移大原则"><a href="#迁移大原则" class="headerlink" title="迁移大原则"></a>迁移大原则</h2><p>1）保稳定</p>
+<ul>
+<li><p>业务低峰期迁移（北京时间早上6~8点）</p>
+</li>
+<li><p>尽可能使用托管服务，尽量少改代码</p>
+</li>
+<li><p>迁移前必须通过功能测试和性能测试</p>
+</li>
+<li><p>多批次小数据量迁移，将每次迁移影响降到最小</p>
+</li>
+</ul>
+<p>2）可回滚</p>
+<ul>
+<li><p>原有环境可以回滚，如果不能则需要有数据实时同步和定时数据备份</p>
+</li>
+<li><p>提前测试回滚，如果不能则测试备份恢复操作可以成功</p>
+</li>
+</ul>
+<p>3）有预案</p>
+<ul>
+<li><p>迁移前预想到可能导致迁移失败的情况</p>
+</li>
+<li><p>针对可能导致失败的情况，提前准备好脚本和命令</p>
+</li>
+<li><p>每个组件正式迁移前，提前演练</p>
+</li>
+</ul>
+<h2 id="总体方案"><a href="#总体方案" class="headerlink" title="总体方案"></a>总体方案</h2><p>首先迁移 MySQL、Redis、MongoDB、ES 等数据库，然后改造其它中间件和基础组件，最后使用同一套代码在 AWS 侧部署新服务，通过流量接入层将读写流量逐渐迁移到新服务。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/2.jpeg?raw=true"/>
+</div>
+
+<h2 id="对比行业最佳实践方案"><a href="#对比行业最佳实践方案" class="headerlink" title="对比行业最佳实践方案"></a>对比行业最佳实践方案</h2><p>根据行业中最佳实践，通常会采用以下流程所示方案：</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/3.jpeg?raw=true"/>
+</div>
+如果我们的服务迁移应用这种方案，存在以下问题：
+- 大量三方调用，模拟数据成本高
+
+<ul>
+<li>线上问题在最后阶段暴露，排期不可控</li>
+<li>业务需求与迁移并行，要维护两个分支</li>
+<li>提前部署，将会对基础服务的依赖提前</li>
+</ul>
+<p>相较而言，上一种方案没有以上的问题，而且更容易保证数据的一致性。</p>
+<h1 id="迁移过程"><a href="#迁移过程" class="headerlink" title="迁移过程"></a>迁移过程</h1><h2 id="数据库迁移基本方案"><a href="#数据库迁移基本方案" class="headerlink" title="数据库迁移基本方案"></a>数据库迁移基本方案</h2><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>描述</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>双写</td>
+<td>通过双写保证数据的一致，平滑迁移</td>
+<td>可以保证数据一致性；<br>不停服，用户无感知</td>
+<td>开发工作量大，周期长</td>
+</tr>
+<tr>
+<td>停服迁移</td>
+<td>原数据库停写，数据完全同步后，切换到 AWS 数据库</td>
+<td>可以保证数据一致性</td>
+<td>停写期间服务可用性受损</td>
+</tr>
+<tr>
+<td>直接切换</td>
+<td>服务直接切换到 AWS 服务</td>
+<td>操作简单</td>
+<td>容易导致数据不一致，出现主键冲突等错误，进而导致一些不可预料的问题，风险高</td>
+</tr>
+</tbody></table>
+<p>数据库迁移有如上三种方案，其中直接切换无法保证数据的一致性，风险高，通常情况下不会选择。</p>
+<p>双写方案预期效果最好，但是开发工作量最大。我们业务使用了 MySQL、MongoDB、Redis、ES、Hbase 等多种数据库，部署项目数量 15+，涉及写数据的逻辑极多，想要实现数据双写，代码改动的工作量非常庞大，代码改动多也意味着潜在风险多、开发周期长。综合考虑开发周期与迁移风险，我们也放弃了这种方案。</p>
+<p>最终我们选择停写迁移的方案。停写后，确保增量数据完全同步成功，数据一致性校验通过后，切换为新数据源。同时我们采取了如下措施来减少停写造成的影响：</p>
+<ul>
+<li><p>在业务低峰期进行迁移；</p>
+</li>
+<li><p>增量数据同步尽可能使用自动化工具，或提前准备好数据迁移和数据校验脚本，缩短停写时间；</p>
+</li>
+<li><p>提前缩减服务节点，缩短切换数据源部署时间。<br>我们评估了各个数据库组件低峰期停写对业务造成的影响，确定了可以接受的最大停写时间，经过模拟演练，验证了停写方案的可行性。</p>
+</li>
+</ul>
+<h2 id="MySQL-迁移"><a href="#MySQL-迁移" class="headerlink" title="MySQL 迁移"></a>MySQL 迁移</h2><h3 id="迁移方案-1"><a href="#迁移方案-1" class="headerlink" title="迁移方案"></a>迁移方案</h3><p>通过binlog机制实现原 MySQL 到 Aurora 的数据迁移，RTO：10分钟  RPO：1分钟。具体步骤如下：</p>
+<ul>
+<li>正向同步：</li>
+</ul>
+<p>1）开启 Aurora binlog 功能，将 Aurora 的写节点设置为原 MySQL 的从节点，通过 binlog 将存量数据同步过来；</p>
+<p>2）将只读流量通过 Proxy 切换到 Aurora 集群只读节点；</p>
+<ul>
+<li>反向同步：</li>
+</ul>
+<p>3）将 MySQL 设置为只读，将 Aurora 写节点设置为主节点，原 MySQL 主节点设置为从节点，实现数据的反向同步，并将写流量通过 Proxy 分发给 Aurora 主节点；</p>
+<p>4）将业务代码的写流量指向 Aurora 的主节点 Endpoint，读流量指向 Aurora 的读Endpoint，和 Proxy 剥离；</p>
+<p>5）开启Aurora Backtrack功能。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/4.jpeg?raw=true"/>
+</div>
+
+<h3 id="Aurora-选型"><a href="#Aurora-选型" class="headerlink" title="Aurora 选型"></a>Aurora 选型</h3><p>通过性能测试确定 Aurora 配置。测试均开启Aurora Binlog，使用 sysbench 测试。自建云平台 MySQL 集群资源比（CPU 核数&#x2F;内存）是 1:4， Aurora 资源比是 1:8，所以下面测试有以内存一致为前提测试，有以核心数一致为前提测试。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>自建云平台配置</th>
+<th>AWS 配置</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>内存一致</td>
+<td>16C&#x2F;64G&#x2F;1T<br>8C</td>
+<td>64G&#x2F;4750Mbps</td>
+<td>AWS 8C&#x2F;64G&#x2F;4750Mbps  与自建云平台侧 16C&#x2F;64G&#x2F;1T 配置 性能测试相当，但随着并发的增加，达到 128 并发线程后，Aurora 性能下降比自建云平台侧较多，鉴于线上 Threads_running 正常情况下低于 24，所以自建云平台侧 16C&#x2F;64G&#x2F;1T 配置，可以使用 Aurora 8C&#x2F;64G&#x2F;4750Mbps 进行代替</td>
+</tr>
+<tr>
+<td>内存一致</td>
+<td>32C&#x2F;128G&#x2F;4T</td>
+<td>16C&#x2F;128G&#x2F;4750Mbps</td>
+<td>AWS 16C&#x2F;128G&#x2F;4750Mbps 配置性能要比自建云平台侧 va8.5 32C&#x2F;128G&#x2F;4T 配置性能低 20%，响应时间在跨机房的情况下和自建云平台侧同机房响应时间基本一致，结合跨机房 35% 的性能损耗，总体还是 AWS 16C&#x2F;128G&#x2F;4750Mbps 配置要优</td>
+</tr>
+<tr>
+<td>核心数一致</td>
+<td>32C&#x2F;128G&#x2F;4T</td>
+<td>32C&#x2F;256G&#x2F;9500Mpbs</td>
+<td>AWS 32C&#x2F;256G&#x2F;9500Mpbs 配置 与 自建云平台侧 va8.5 32C&#x2F;128G&#x2F;4T 配置性能相当，随着并发的增加 AWS 侧性能，AWS 性能比较稳定，最大吞吐虽然有下降，但 P99 响应时间 一直比自建云平台侧低 2 倍</td>
+</tr>
+</tbody></table>
+<h2 id="MongoDB-迁移"><a href="#MongoDB-迁移" class="headerlink" title="MongoDB 迁移"></a>MongoDB 迁移</h2><p>通过 MongoShake 和 oplog 实现 MongoDB 的数据迁移，RTO：10 分钟  RPO：10 分钟。具体步骤如下：</p>
+<p>1）通过 MongoShake 将 MongoDB 的存量数据同步到目标环境；</p>
+<p>2）将源 MongoDB 设置为只读权限；</p>
+<p>3）将业务流量切换至目标环境的 MongoDB；</p>
+<p>4）关闭数据同步；</p>
+<p>5）每10分钟做一次备份。</p>
+<p>开源版本的 MongoDB 没有开启 PID 功能，如果要实现反向同步必须保证是空数据库同步，故改为离线备份方式。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/5.jpeg?raw=true"/>
+</div>
+
+<h2 id="Redis-迁移"><a href="#Redis-迁移" class="headerlink" title="Redis 迁移"></a>Redis 迁移</h2><p>通过 RedisShake 实现 Redis 到 ElastiCache Redis 的数据迁移，通过 ElastiCache 的 Backup 实现小时级的数据反向同步，RTO：10分钟    RPO：10分钟。具体步骤如下：</p>
+<ul>
+<li>正向同步</li>
+</ul>
+<p>1）通过 RedisShake 将原 Redis 的存量数据同步到目标环境的 ElastiCache Redis 上；</p>
+<p>2）将业务流量切换到目标环境的 ElastiCache Redis 上；</p>
+<p>3）写脚本实现 ElastiCache Redis 的定期备份，并拷贝到 S3 上（ ElastiCache Redis 默认不开启psync，可以向后台申请开启，但开启后不能保障 SLA，故放弃 psync 反向同步）；</p>
+<ul>
+<li>反向拷贝</li>
+</ul>
+<p>4）原集群实时同步 ElastiCache Redis 的备份，当 ElastiCache Redis 出现问题时可以及时回滚到原集群。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/6.jpeg?raw=true"/>
+</div>
+Redis 迁移特殊的一点是没有采用类似 MySQL、MongoDB 等组件采用的停写迁移方案。主要原因是 Redis 停写操作难度较高，需要业务上进行代码改造来实现，代码改动的工作量非常庞大。
+
+<p>直接切换的方案在迁移过程中可能出现老数据覆盖新数据的问题，但考虑到迁移窗口在业务低峰期，Redis 写 QPS 很低，而且 Redis 中大部分数据属于缓存数据，造成的影响有限。所以我们最终选择了直接迁移的方案。</p>
+<h2 id="ES-迁移"><a href="#ES-迁移" class="headerlink" title="ES 迁移"></a>ES 迁移</h2><p>通过 ElasticSearch 的 Snapshot 功能实现 ElasticSearch 数据迁移。RTO：10 分钟   RPO：20 分钟。具体步骤如下：</p>
+<p>1）将原 ElasticSearch 索引的第一次（全量数据）Snapshot 到 S3（注册 S3 为 Snapshot 的仓库），并恢复到目标环境的 OpenSearch 上；</p>
+<p>2）将原 ElasticSearch 账号设置为只读，将原 ElasticSearch 索引的第二次（增量数据）的 Snapshot 导出到 S3，并恢复到目标环境的 OpenSearch 上；</p>
+<p>3）切换写读写流量到目标环境的 OpenSearch上；</p>
+<p>4）写 Cronjob 实现 20 分钟一次的 Snapshot 备份。</p>
+<p>注：ElasticSearch 7.7（OpenSearch）版本的 Snapshot 无法在 ElasticSearch7.6.2（原集群版本）上恢复，所以采用离线 Snapshot 的备份方式。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/7.jpeg?raw=true"/>
+</div>
+
+<h2 id="Hbase-迁移"><a href="#Hbase-迁移" class="headerlink" title="Hbase 迁移"></a>Hbase 迁移</h2><p>通过 HBase 的 Snapshot 功能实现 HBase 数据迁移。RTO：30分钟    RPO：10分钟。具体步骤如下：</p>
+<p>1）业务侧停写，将原 HBase 表数据通过 Snapshot 导出到 HDFS 上，再 distcp 到目标环境 S3 上；</p>
+<p>2）将 S3 上的 Snapshot 恢复到 EMR HBase 上；</p>
+<p>3）将业务流量切换至目标环境的 EMR HBase 上；</p>
+<p>4）开启 EMR HBase 集群之间的 replication 功能，基于 WAL 日志实现同步；</p>
+<p>5）同时定期对重要表进行 Snapshot 备份。</p>
+<p>AWS 的 HBase 是 EMR HBase on HDFS 模式，底层是 i3 的 EC2，而 EMR 默认是单 AZ 部署，所以在已有两个 HBase 集群分别部署到不同的 AZ 上，同时对重要的表做了 replication 的操作。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/8.jpeg?raw=true"/>
+</div>
+
+<h2 id="服务改造"><a href="#服务改造" class="headerlink" title="服务改造"></a>服务改造</h2><p>底层存储数据库迁移完成后，开始对服务中使用的基础组件进行改造，具体措施如下：</p>
+<table>
+<thead>
+<tr>
+<th>自建云平台侧技术组件</th>
+<th>改造方式</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>RocketMQ</td>
+<td>替换为 Amazon SQS，步骤如下：<br>1. 上线 SQS 生产者和消费者，新增数据写入 SQS；<br>2. 原 MQ 消费者继续消费历史数据；<br>3. 历史数据消费完成后，下线原 MQ</td>
+</tr>
+<tr>
+<td>EMQ</td>
+<td>同RocketMQ</td>
+</tr>
+<tr>
+<td>Talos</td>
+<td>替换为 Amazon MSK ，步骤和 RocketMQ、EMQ 类似</td>
+</tr>
+<tr>
+<td>FDS</td>
+<td>替换为 Amazon S3，通过双写完成数据迁移</td>
+</tr>
+<tr>
+<td>Thrift</td>
+<td>无需改造</td>
+</tr>
+<tr>
+<td>Zookeeper</td>
+<td>在 Amazon EC2 上自建 Zookeeper</td>
+</tr>
+<tr>
+<td>短信服务</td>
+<td>替换为 Amazon Pinpoint，由于 Pinpoint 只是发送通道，需要自己实现验证码生成和验证逻辑</td>
+</tr>
+<tr>
+<td>日志系统</td>
+<td>通过 MSK 和 OpenSearch 自建日志收集系统</td>
+</tr>
+<tr>
+<td>中台评论</td>
+<td>自建服务，去中台依赖</td>
+</tr>
+<tr>
+<td>中台审核</td>
+<td>自建服务，去中台依赖</td>
+</tr>
+</tbody></table>
+<p>服务改造完成后，在 AWS 侧部署一套服务，通过 Nginx 逐步切换流量，最终完整个服务迁移。</p>
+<h2 id="其它技术问题"><a href="#其它技术问题" class="headerlink" title="其它技术问题"></a>其它技术问题</h2><h3 id="时区问题"><a href="#时区问题" class="headerlink" title="时区问题"></a>时区问题</h3><p>原服务机器服务都是东八区，而 AWS 是 UTC 时区。</p>
+<p>解决措施：</p>
+<ul>
+<li><p>整理哪些组件和服务依赖时区</p>
+</li>
+<li><p>EC2 可以设置时区</p>
+</li>
+<li><p>EMR 可以通过 Bootstrap 更改底层 EC2 的时区，Flink&#x2F;Spark&#x2F;Hive都默认调EC2的时区</p>
+</li>
+<li><p>Aurora 可以更改 MySQL引擎的时区</p>
+</li>
+<li><p>Redis&#x2F;MSK&#x2F;OpenSearch 默认是 UTC 时间，可以在写入数据时通过代码指定时区</p>
+</li>
+</ul>
+<h3 id="binlog-问题"><a href="#binlog-问题" class="headerlink" title="binlog 问题"></a>binlog 问题</h3><p>数据组需要用到业务组的 binlog，并写入到数仓中，原来的解决方案依赖自建云平台的中间件和数仓产品，迁移后不可用。</p>
+<p>解决方案：</p>
+<ul>
+<li><p>在 MSK 托管的 connector 上引用 Debezium</p>
+</li>
+<li><p>将 binlog 日志导入到 MSK 里的 Topic 里</p>
+</li>
+<li><p>下游 EMR Flink 消费，通过 Flink Kudu 的 connector 写入到数仓中</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/9.jpeg?raw=true"/>
+</div></li>
+</ul>
+<h3 id="CI-CD-问题"><a href="#CI-CD-问题" class="headerlink" title="CI&#x2F;CD 问题"></a>CI&#x2F;CD 问题</h3><p>迁移前使用自建云平台的 CI&#x2F;CD 平台，迁移后需要有另一套 CI&#x2F;CD 平台方案，并与 Autoscaling Group 结合。</p>
+<p>解决方案：使用Jenkins，AWS CodeDeploy，Autoscaling Group实现</p>
+<p>具体步骤：</p>
+<ul>
+<li><p>使用 Jenkins 实现 Gitlab 对接</p>
+</li>
+<li><p>基于  Jenkins worker 节点实现代码编译，不使用 CodeBuild 的原因是原服务有使用修改内核后的 CentOS 编译 C++ 代码的场景，而 CodeBuild 默认没有 CentOS，为了避免使用两套技术栈所以采用了自建 Jenkins worker 节点的方式编译代码</p>
+</li>
+<li><p>基于 HTTP Plugin 实现和 S3 的交互，将编译好的包上传到 S3</p>
+</li>
+<li><p>使用 Jenkins 的 Plugin 调 CodeDeploy 部署代码到相应的 Autoscaling Group EC2 上，当 S3 代码出现变化，自动触发 CD 流程</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/service-migration/10.jpeg?raw=true"/>
+</div></li>
+</ul>
+<h1 id="总结和收获"><a href="#总结和收获" class="headerlink" title="总结和收获"></a>总结和收获</h1><h2 id="托管服务的优势"><a href="#托管服务的优势" class="headerlink" title="托管服务的优势"></a>托管服务的优势</h2><table>
+<thead>
+<tr>
+<th></th>
+<th>迁移前</th>
+<th>迁移后</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>安全合规</td>
+<td>需要内部法务和安全专家确定，时间周期长</td>
+<td>无需考虑，托管服务有各种合规标准</td>
+</tr>
+<tr>
+<td>运维工作</td>
+<td>需要跨部门支持，耗费大量人工和时间</td>
+<td>3 个 SRE 维护整个架构，如有 case AWS 会及时响应</td>
+</tr>
+<tr>
+<td>系统可用性</td>
+<td>自建云平台无准确评估</td>
+<td>托管服务都有 SLA 和最佳实践</td>
+</tr>
+<tr>
+<td>性能</td>
+<td>基于开源自建</td>
+<td>托管服务性能和开源一致，Aurora 性能高于开源</td>
+</tr>
+<tr>
+<td>创新</td>
+<td>需求需要层层传递，耗费大量人工和沟通时间，且需求较难实现</td>
+<td>利用 AWS 托管服务可以随时验证想法，如可以利用托管 AI 服务 Transcribe 进行很多测试</td>
+</tr>
+<tr>
+<td>成本</td>
+<td>IDC 用法，需要预置资源，浪费较多</td>
+<td>大部分托管服务都有弹性，可以随时调整</td>
+</tr>
+</tbody></table>
+<h1 id="迁移的心得"><a href="#迁移的心得" class="headerlink" title="迁移的心得"></a>迁移的心得</h1><p>历经4月，最终顺利完成了整个迁移工作，我们总结了迁移的几个关键点。<br>首先是技术能力方面：</p>
+<ul>
+<li><p>梳理当前架构&#x2F;设计合理的架构：服务迁移的前提是完全了解服务架构和实现细节；</p>
+</li>
+<li><p>迁移方案确认：根据实际情况制定合理方案，是服务迁移的关键；</p>
+</li>
+<li><p>功能测试&#x2F;性能测试：迁移过程中每个环节都要经过严格的测试和演练，是迁移的基础；</p>
+</li>
+<li><p>最佳实践：充分了解各组件的最佳实践并合理应用，才能提升效率并保证迁移后服务的稳定性。</p>
+</li>
+</ul>
+<p>然后是项目管理方面：</p>
+<ul>
+<li><p>切分可以并行的业务模块，提升迁移效率；</p>
+</li>
+<li><p>把控迁移节奏，及时发现风险点；</p>
+</li>
+<li><p>集中时间和资源解决 Block issue。</p>
+</li>
+</ul>
+</div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/%E6%9C%8D%E5%8A%A1%E8%BF%81%E7%A7%BB/">服务迁移</a><a class="link-muted mr-2" rel="tag" href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E8%BF%81%E7%A7%BB/">数据库迁移</a><a class="link-muted mr-2" rel="tag" href="/tags/AWS/">AWS</a></div><!--!--></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2024/02/26/db-sharding/"><span class="level-item">分库分表实战</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--></div><!--!--><div class="column column-right is-4-tablet is-4-desktop is-4-widescreen  order-3 is-sticky"><div class="card widget" id="toc" data-type="toc"><div class="card-content"><div class="menu"><h3 class="menu-label">Catalogue</h3><ul class="menu-list"><li><a class="level is-mobile" href="#背景和挑战"><span class="level-left"><span class="level-item">1</span><span class="level-item">背景和挑战</span></span></a></li><li><a class="level is-mobile" href="#迁移方案"><span class="level-left"><span class="level-item">2</span><span class="level-item">迁移方案</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#原服务架构"><span class="level-left"><span class="level-item">2.1</span><span class="level-item">原服务架构</span></span></a></li><li><a class="level is-mobile" href="#迁移技术评估"><span class="level-left"><span class="level-item">2.2</span><span class="level-item">迁移技术评估</span></span></a></li><li><a class="level is-mobile" href="#迁移大原则"><span class="level-left"><span class="level-item">2.3</span><span class="level-item">迁移大原则</span></span></a></li><li><a class="level is-mobile" href="#总体方案"><span class="level-left"><span class="level-item">2.4</span><span class="level-item">总体方案</span></span></a></li><li><a class="level is-mobile" href="#对比行业最佳实践方案"><span class="level-left"><span class="level-item">2.5</span><span class="level-item">对比行业最佳实践方案</span></span></a></li></ul></li><li><a class="level is-mobile" href="#迁移过程"><span class="level-left"><span class="level-item">3</span><span class="level-item">迁移过程</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#数据库迁移基本方案"><span class="level-left"><span class="level-item">3.1</span><span class="level-item">数据库迁移基本方案</span></span></a></li><li><a class="level is-mobile" href="#MySQL-迁移"><span class="level-left"><span class="level-item">3.2</span><span class="level-item">MySQL 迁移</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#迁移方案-1"><span class="level-left"><span class="level-item">3.2.1</span><span class="level-item">迁移方案</span></span></a></li><li><a class="level is-mobile" href="#Aurora-选型"><span class="level-left"><span class="level-item">3.2.2</span><span class="level-item">Aurora 选型</span></span></a></li></ul></li><li><a class="level is-mobile" href="#MongoDB-迁移"><span class="level-left"><span class="level-item">3.3</span><span class="level-item">MongoDB 迁移</span></span></a></li><li><a class="level is-mobile" href="#Redis-迁移"><span class="level-left"><span class="level-item">3.4</span><span class="level-item">Redis 迁移</span></span></a></li><li><a class="level is-mobile" href="#ES-迁移"><span class="level-left"><span class="level-item">3.5</span><span class="level-item">ES 迁移</span></span></a></li><li><a class="level is-mobile" href="#Hbase-迁移"><span class="level-left"><span class="level-item">3.6</span><span class="level-item">Hbase 迁移</span></span></a></li><li><a class="level is-mobile" href="#服务改造"><span class="level-left"><span class="level-item">3.7</span><span class="level-item">服务改造</span></span></a></li><li><a class="level is-mobile" href="#其它技术问题"><span class="level-left"><span class="level-item">3.8</span><span class="level-item">其它技术问题</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#时区问题"><span class="level-left"><span class="level-item">3.8.1</span><span class="level-item">时区问题</span></span></a></li><li><a class="level is-mobile" href="#binlog-问题"><span class="level-left"><span class="level-item">3.8.2</span><span class="level-item">binlog 问题</span></span></a></li><li><a class="level is-mobile" href="#CI-CD-问题"><span class="level-left"><span class="level-item">3.8.3</span><span class="level-item">CI/CD 问题</span></span></a></li></ul></li></ul></li><li><a class="level is-mobile" href="#总结和收获"><span class="level-left"><span class="level-item">4</span><span class="level-item">总结和收获</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#托管服务的优势"><span class="level-left"><span class="level-item">4.1</span><span class="level-item">托管服务的优势</span></span></a></li></ul></li><li><a class="level is-mobile" href="#迁移的心得"><span class="level-left"><span class="level-item">5</span><span class="level-item">迁移的心得</span></span></a></li></ul></div></div><style>#toc .menu-list > li > a.is-active + .menu-list { display: block; }#toc .menu-list > li > a + .menu-list { display: none; }</style><script src="/js/toc.js" defer></script></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a><p class="is-size-7"><span>&copy; 2024 Jamin</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">人生如逆旅，我亦是行人</p></div><div class="level-end"></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("en");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="Back to top" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="Type something..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"Type something...","untitled":"(Untitled)","posts":"Posts","pages":"Pages","categories":"Categories","tags":"Tags"});
+        });</script></body></html>
