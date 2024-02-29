@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>分库分表——原理篇 - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本文是对分库分表基本原理以及通用方案的总结归纳，内容主要来源于互联网上的几篇博客，详见参考文献部分。我在另一篇文章《分库分表——实战篇》中介绍了基于这些通用原理，在实际项目进行的两个分库分表案例。"><meta property="og:type" content="article"><meta property="og:title" content="分库分表——原理篇"><meta property="og:url" content="http://qinjianmin.github.io/2024/02/26/db-sharding-theory/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="本文是对分库分表基本原理以及通用方案的总结归纳，内容主要来源于互联网上的几篇博客，详见参考文献部分。我在另一篇文章《分库分表——实战篇》中介绍了基于这些通用原理，在实际项目进行的两个分库分表案例。"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2024-02-26T15:09:12.000Z"><meta property="article:modified_time" content="2024-02-29T04:22:31.456Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="分库分表"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2024/02/26/db-sharding-theory/"},"headline":"分库分表——原理篇","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2024-02-26T15:09:12.000Z","dateModified":"2024-02-29T04:22:31.456Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"本文是对分库分表基本原理以及通用方案的总结归纳，内容主要来源于互联网上的几篇博客，详见参考文献部分。我在另一篇文章《分库分表——实战篇》中介绍了基于这些通用原理，在实际项目进行的两个分库分表案例。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2024/02/26/db-sharding-theory/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2024-02-26T15:09:12.000Z" title="2/26/2024, 11:09:12 PM">2024-02-26</time></span><span class="level-item">Updated&nbsp;<time dateTime="2024-02-29T04:22:31.456Z" title="2/29/2024, 12:22:31 PM">2024-02-29</time></span><span class="level-item"><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><span> / </span><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MySQL/">MySQL</a></span><span class="level-item">44 minutes read (About 6577 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">分库分表——原理篇</h1><div class="content"><h1 id="为什么要分库分表？"><a href="#为什么要分库分表？" class="headerlink" title="为什么要分库分表？"></a>为什么要分库分表？</h1><h2 id="垂直方向"><a href="#垂直方向" class="headerlink" title="垂直方向"></a>垂直方向</h2><p>垂直方向主要针对的是业务。</p>
+<h3 id="单库"><a href="#单库" class="headerlink" title="单库"></a>单库</h3><p>在系统初期，业务功能相对来说比较简单，系统模块较少。</p>
+<p>为了快速满足迭代需求，减少一些不必要的依赖。更重要的是减少系统的复杂度，保证开发速度，我们通常会使用单库来保存数据。</p>
+<p>系统初期的数据库架构如下：</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/1.jpeg?raw=true"/>
+</div>
+
+<p>此时，使用的数据库方案是：一个数据库包含多张业务表。用户读数据请求和写数据请求，都是操作的同一个数据库。</p>
+<h3 id="分表"><a href="#分表" class="headerlink" title="分表"></a>分表</h3><p>系统上线之后，随着业务的发展，不断的添加新功能。导致单表中的字段越来越多，开始变得有点不太好维护了。</p>
+<p>一个用户表就包含了几十甚至上百个字段，管理起来有点混乱。</p>
+<p>这时候该怎么办呢？答：分表。例如将用户表拆分为：用户基础信息表和用户扩展信息表。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/2.jpeg?raw=true"/>
+</div>
+
+<p>用户基本信息表中存的是用户最主要的信息，比如：账号、登陆类型、昵称、头像、性别、生日、电话、邮件等核心数据。这些信息跟用户息息相关，查询的频次非常高。</p>
+<p>而用户扩展表中存的是用户的扩展信息，比如头像识别结果等非核心数据。这些信息只有在特定的业务场景才需要查询，而绝大数业务场景是不需要的。</p>
+<p>所以通过分表把核心数据和非核心数据分开，让表的结构更清晰，职责更单一，更便于维护。</p>
+<p>除了按实际业务分表之外，上述方案也体现了另一个常用的分表原则：把调用频次高的放在一张表，调用频次低的放在另一张表。</p>
+<h3 id="分库"><a href="#分库" class="headerlink" title="分库"></a>分库</h3><p>系统已经上线已经经历了 N 个迭代的需求开发，功能已经非常完善。系统功能完善，意味着系统各种关联关系，错综复杂。此时，如果不赶快梳理业务逻辑，后面会带来很多隐藏问题，坑越来越多。</p>
+<p>这就需要按业务功能，划分不同领域了。把相同领域的表放到同一个数据库，不同领域的表，放在另外的数据库。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/3.jpeg?raw=true"/>
+</div>
+
+<p>例如，将用户、视频、点赞、push 相关的表，从原来一个数据库中，拆分成单独的用户库、视频库、点赞库和 push 库，一共四个数据库。这样按领域拆分之后，每个领域只用关注自己相关的表，职责更单一了，变得更好维护了。</p>
+<h3 id="分库分表"><a href="#分库分表" class="headerlink" title="分库分表"></a>分库分表</h3><p>有时候按业务，只分库或者只分表是不够的。那就需要结合使用分库分表。</p>
+<h2 id="水平方向"><a href="#水平方向" class="headerlink" title="水平方向"></a>水平方向</h2><p>水分方向主要针对的是数据。</p>
+<h2 id="单库-1"><a href="#单库-1" class="headerlink" title="单库"></a>单库</h2><p>在系统初期，由于用户非常少，所以系统并发量很小。并且存在表中的数据量也非常少。<br>这时的数据库架构如下：</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/1.jpeg?raw=true"/>
+</div>
+
+<p>此时，使用的数据库方案同样是：一个数据库包含多张业务表。</p>
+<p>用户读数据请求和写数据请求，都是操作的同一个数据库，该方案比较适合于并发量很低的业务场景。</p>
+<h2 id="主从分离"><a href="#主从分离" class="headerlink" title="主从分离"></a>主从分离</h2><p>系统上线一段时间后，用户数量增加了。此时，单个节点可能扛不住所有的读写请求了。<br>因为大部分场景下都是读多写少，所以我们可以把读库和写库分开。于是，就出现了主从读写分离架构。</p>
+<p>这种架构可以解决上面提到的单节点无法承载所有请求压力的问题，而且随着读请求量增加，还可以增加从库的数量，通过负载均衡来保障读请求的性能不会下降。除此以外相对于单库的方案，还有以下优势：</p>
+<ul>
+<li><p>主从负责各自的写和读，极大程度的缓解 X 锁和 S 锁争用</p>
+</li>
+<li><p>能够更好的保证系统的稳定性。因为如果主库挂了，可以升级从库为主库，将所有读写请求都指向新主库，系统又能正常运行了</p>
+</li>
+</ul>
+<p>在用户量还没那么大的时候，可以选择一主一从的架构，所有的写数据请求，都指向主库。一旦主库写完数据之后，立马异步同步给从库。这样所有的读数据请求，就能及时从从库中获取到数据了（会存在一定延迟）。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/4.jpeg?raw=true"/>
+</div>
+
+<p>但这里有个问题就是：如果主库挂了，升级从库为主库，需要将所有读写请求都指向新主。但此时，可能这个新主根本扛不住所有的读写请求，而且读写分离的架构直接不存在了，读写请求之间可能出现锁竞争、数据库连接竞争等问题，所以我们一般会使用一主多从的架构。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/5.jpeg?raw=true"/>
+</div>
+以上图一主多从的架构为例，如果主库挂了，可以选择从库 1 或从库 2 中的一个，升级为新主库。
+
+<p>假如我们在这里升级从库 1 为新主，则原来的从库 2 就变成了新主库的从库了。如果查询请求量再增大，我们还可以将架构升级为一主三从、一主四从…一主 N 从等。</p>
+<h2 id="分库-1"><a href="#分库-1" class="headerlink" title="分库"></a>分库</h2><p>上面的读写分离方案确实可以解决读请求导致的主节点扛不住（连接资源不足或 CPU 成为瓶颈）的问题。</p>
+<p>但如果某个库，比如：点赞库。如果点赞的请求量非常大，即写请求本身的请求量就很大，一个主库库根本无法承受住这么大的压力。这个时候该怎么办？答：分库。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/6.jpeg?raw=true"/>
+</div>
+例如，这里将点赞库库拆分成了两个库，每个库的表结构是一模一样的，只有存储的数据不一样。
+
+<h2 id="分表-1"><a href="#分表-1" class="headerlink" title="分表"></a>分表</h2><p>用户请求量上来了，带来的势必是数据量的成本上升。即使做了分库，但有可能单个库中的某个表数据量过大，比如：视频表累计超过 1.5 亿的数据。</p>
+<p>根据经验值，单表的数据量应该尽量控制在 2000 万以内，性能是最佳的。如果有几千万级甚至上亿的数据量，用单表来存，性能会变得很差。这里 2000 万只是经验值，实际值和数据库产品类型、版本、机器配置、存储大小等也有关系，需要根据实际情况分析。</p>
+<p>数据量过大之所以会导致性能下降，是因为 MySQL 在 InnoDB 存储引擎下创建的索引都是基于 B+ 树实现的，所以查询时的 I&#x2F;O 次数很大程度取决于树的高度，随着 B+ 树的树高增高，I&#x2F;O 次数增加，查询性能也就越差。</p>
+<p>这时该怎么办呢？答：分表。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/7.jpeg?raw=true"/>
+</div>
+
+<p>例如，这里将视频库中的视频表，拆分成了 32 张表，每张表的表结构是一模一样的，只是存储的数据不一样。如果以后视频数据量越来越大，只需再多分几张视频表即可。</p>
+<h2 id="分库分表-1"><a href="#分库分表-1" class="headerlink" title="分库分表"></a>分库分表</h2><p>当系统发展到一定的阶段，用户并发量大，而且需要存储的数据量也很多。这时该怎么办呢？答：需要做分库分表。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/8.jpeg?raw=true"/>
+</div>
+
+<p>例如，这里将点赞库拆分成了两个库，每个库都包含了 128 张点赞表。如果有用户请求过来的时候，需要根据分表规则将其路由到其中某个库的某张表。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>上面主要从垂直和水平两个方向介绍了我们的系统为什么要分库分表。垂直方向（即业务方向）很简单。在水平方向（即数据方向）上，分库和分表的作用，其实是有区别的，不能混为一谈。</p>
+<ul>
+<li><p>分库：是为了解决主库连接资源不足问题和磁盘 IO 利用率过高问题。</p>
+</li>
+<li><p>分表：是为了解决单表数据量太大，sql 语句查询数据时，即使走了索引也非常耗时问题。</p>
+</li>
+<li><p>分库分表：解决上面两类问题。</p>
+</li>
+</ul>
+<p>如果在有些业务场景中，写请求并发量很大，但是数据总量很少，这时可以只分库，不分表。</p>
+<p>如果在有些业务场景中，写请求并发量不大，但是数据总量很多，这时可以只分表，不分库。</p>
+<p>如果在有些业务场景中，写请求并发量大，并且数据总量也很多时，需要分库分表。</p>
+<h1 id="分库分表的方案有哪些？"><a href="#分库分表的方案有哪些？" class="headerlink" title="分库分表的方案有哪些？"></a>分库分表的方案有哪些？</h1><p>在看具体的方案前，我们首先需要认识到，分库分表实施方案需要关注的两个问题。</p>
+<p>1）路由算法 —— 关注数据偏斜问题</p>
+<p>一个良好的分库分表方案，它的数据应该是需要比较均匀的分散在各个库表中的，否则有的库&#x2F;表的数据很多，有的库&#x2F;表数据很少，会导致以下问题：</p>
+<ul>
+<li><p>业务上的表现经常是延迟忽高忽低，飘忽不定</p>
+</li>
+<li><p>后续的扩容步调不一致，无法统一操作</p>
+</li>
+</ul>
+<p>2）扩容方案 —— 关注方案可持续性问题</p>
+<p>业务数据量级和业务流量未来进一步升高达到新的量级的时候，我们的分库分表方案可以持续使用，也就是能够实现平滑扩容。</p>
+<p>理解了这两个问题，接来看下具体的分库分表方案。</p>
+<h2 id="Range-分库分表"><a href="#Range-分库分表" class="headerlink" title="Range 分库分表"></a>Range 分库分表</h2><p>该方案根据数据范围划分数据的存放位置。</p>
+<p>举个最简单例子，我们可以把订单表按照年份为单位，每年的数据存放在单独的库(或者表)中。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">public static String rangeShardByYear(String orderId) &#123; </span><br><span class="line">    int year = Integer.parseInt(orderId.substring(0, 4)); </span><br><span class="line">    return &quot;t_order_&quot; + year; </span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+<p>这种方案简单直观，但特定业务场景下才能使用。而且存在以下缺点：</p>
+<ul>
+<li><p>可能存在热点数据问题</p>
+</li>
+<li><p>新库&#x2F;新表的追加需要提前处理</p>
+</li>
+<li><p>交叉范围内的数据需要特殊处理，比如某个定时任务需要处理昨天的数据，元旦那一天的逻辑需要特殊处理。</p>
+</li>
+</ul>
+<h2 id="Hash-分库分表"><a href="#Hash-分库分表" class="headerlink" title="Hash 分库分表"></a>Hash 分库分表</h2><p>该方案是对选择的分片 key（表中的某个字段）取哈希，然后根据一定规则映射到具体的数据库和表中。</p>
+<h3 id="标准的二次分片法"><a href="#标准的二次分片法" class="headerlink" title="标准的二次分片法"></a>标准的二次分片法</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public static ShardCfg shard(String userId) &#123; </span><br><span class="line">        // ① 算Hash </span><br><span class="line">        int hash = userId.hashCode(); </span><br><span class="line">        // ② 总分片数 </span><br><span class="line">        int sumSlot = DB_CNT * TBL_CNT; </span><br><span class="line">        // ③ 分片序号 </span><br><span class="line">        int slot = Math.abs(hash % sumSlot); </span><br><span class="line">        // ④ 计算库序号和表序号</span><br><span class="line">        int dbIdx = slot / TBL_CNT ; </span><br><span class="line">        int tblIdx = slot % TBL_CNT ; </span><br><span class="line"> </span><br><span class="line">        return new ShardCfg(dbIdx, tblIdx); </span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+<p>1）数据偏斜问题：<br>只要 Hash 值足够均匀，那么理论上分片序号也会足够平均，于是每个库和表中的数据量也能保持较均衡的状态。</p>
+<p>2）平滑扩容问题：<br>翻倍扩容后，我们的表序号一定维持不变，库序号可能还是在原来库，也可能平移到了新库中(原库序号加上原分库数)，这样只需要基于库迁移数据，而且只需要移动一半的数据，满足扩容可持续要求。</p>
+<p>以 10 库 100 表为例，分片序号为 986 的数据存储在第 9 库第 86 表。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/9.png?raw=true"/>
+</div>
+
+<p>翻倍扩容后（10 库-&gt;20 库），分片序号可能还是 986，也可能变成了 1986，所以表序号一定维持不变，还是 86，库序号可能是 9，也可能是 19。</p>
+<p>方案缺点：</p>
+<ul>
+<li>翻倍扩容法前期操作性高，但是后续如果分库数已经是大几十的时候，每次扩容都非常耗费资源。</li>
+</ul>
+<p>不过要注意，在设计分片规则的时候，不要犯下面这两个错误。</p>
+<p>错误方案一：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">public static ShardCfg shard(String userId) &#123; </span><br><span class="line">    int hash = userId.hashCode(); </span><br><span class="line">    // 对库数量取余结果为库序号 </span><br><span class="line">    int dbIdx = Math.abs(hash % DB_CNT); </span><br><span class="line">    // 对表数量取余结果为表序号 </span><br><span class="line">    int tblIdx = Math.abs(hash % TBL_CNT); </span><br><span class="line">    return new ShardCfg(dbIdx, tblIdx); </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>用 Hash 值分别对分库数和分表数取余，得到库序号和表序号。这种方式为什么是错误的？</p>
+<p>以 10 库 100 表为例，如果一个 Hash 值对 100 取余为 0，那么它对 10 取余也必然为 0。这就意味着只有 0 库里面的 0 表才可能有数据，而其他库中的 0 表永远为空。</p>
+<p>类似的我们还能推导到，0 库里面的共 100 张表，只有 10 张表中(个位数为 0 的表序号)才可能有数据。</p>
+<p>这就带来了非常严重的数据偏斜问题，因为某些表中永远不可能有数据。</p>
+<p>错误方案二：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">public static ShardCfg shard(String userId) &#123; </span><br><span class="line">        // ① 算Hash </span><br><span class="line">        int hash = userId.hashCode(); </span><br><span class="line">        // ② 总分片数 </span><br><span class="line">        int sumSlot = DB_CNT * TBL_CNT; </span><br><span class="line">        // ③ 分片序号 </span><br><span class="line">        int slot = Math.abs(hash % sumSlot); </span><br><span class="line">        // ④ 计算库序号和表序号的错误案例 </span><br><span class="line">        int dbIdx = slot % DB_CNT ; </span><br><span class="line">        int tblIdx = slot / DB_CNT ; </span><br><span class="line"> </span><br><span class="line">        return new ShardCfg(dbIdx, tblIdx); </span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+<p>只要 Hash 值足够均匀，那么理论上分片序号也会足够平均，于是每个库和表中的数据量也能保持较均衡的状态。所以这种方案没有数据偏斜的问题，那它为什么是错误的？</p>
+<p>在计算表序号的时候，依赖了总库的数量，那么后续翻倍扩容法进行扩容时，会出现扩容前后数据不在同一个表中的现象。</p>
+<p>如上图中，例如扩容前 Hash 为 1986 的数据应该存放在 6 库 98 表，但是翻倍扩容成 20 库 100 表后，它分配到了 6 库 99 表，表序号发生了偏移。</p>
+<p>这样的话，我们在后续在扩容的时候，不仅要基于库迁移数据，还要基于表迁移数据，非常麻烦且易错。</p>
+<h2 id="一致性哈希法"><a href="#一致性哈希法" class="headerlink" title="一致性哈希法"></a>一致性哈希法</h2><p>关于一致性 Hash 的具体原理这里不做介绍。</p>
+<p>实际使用这种方案时，我们通常会将每个实际节点的配置持久化在一个配置中心或者是数据库中，配置一般包括一个[StartKey，Endkey)的左闭右开区间和一个数据库节点信息，例如：</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/10.png?raw=true"/>
+</div>
+
+<p>应用启动时或者是进行切换操作的时候会去加载配置。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">private TreeMap&lt;Long, Integer&gt; nodeTreeMap = new TreeMap&lt;&gt;(); </span><br><span class="line">@Override </span><br><span class="line">public void afterPropertiesSet() &#123; </span><br><span class="line">    // 启动时加载分区配置 </span><br><span class="line">    List&lt;HashCfg&gt; cfgList = fetchCfgFromDb(); </span><br><span class="line">    for (HashCfg cfg : cfgList) &#123; </span><br><span class="line">        nodeTreeMap.put(cfg.endKey, cfg.nodeIdx); </span><br><span class="line">    &#125; </span><br><span class="line">&#125; </span><br><span class="line">public ShardCfg shard(String userId) &#123; </span><br><span class="line">    int hash = userId.hashCode(); </span><br><span class="line">    int dbIdx = nodeTreeMap.tailMap((long) hash, false).firstEntry().getValue(); </span><br><span class="line">    int tblIdx = Math.abs(hash % 100); </span><br><span class="line">    return new ShardCfg(dbIdx, tblIdx); </span><br><span class="line">&#125; </span><br></pre></td></tr></table></figure>
+<p>一致性 Hash 是针对分片键的 Hash 值进行范围配置。正规的一致性 Hash 算法会引入虚拟节点，每个虚拟节点会指向一个真实的物理节点。引入虚拟节点有如下作用：</p>
+<ul>
+<li><p>节点数量多了后，节点在哈希环上的分布就相对均匀了，可以提高节点的均衡度；</p>
+</li>
+<li><p>当节点变化时，会有不同的节点共同分担系统的变化，不仅可以保证节点的均衡度，而且会提高系统的稳定性。比如，当某个节点被移除时，对应该节点的多个虚拟节点均会移除，而这些虚拟节点按顺时针方向的下一个虚拟节点，可能会对应不同的真实节点，即这些不同的真实节点共同分担了节点变化导致的压力。</p>
+</li>
+</ul>
+<p>但是用在分库分表上，一般大部分都只用实际节点，引入虚拟节点的案例不多。主要有以下原因：</p>
+<ul>
+<li><p>如果虚拟节点较多，节点配置信息在内存中的占用也会比较多。</p>
+</li>
+<li><p>从多个节点迁移数据，不如从单个节点迁移数据（通过主从复制后再删除冗余数据）简单可控。</p>
+</li>
+<li><p>分库分表中通常是新增节点，不存在某个节点被移除导致下个节点压力突增的问题</p>
+</li>
+</ul>
+<h1 id="分库分表后如何平滑扩容？"><a href="#分库分表后如何平滑扩容？" class="headerlink" title="分库分表后如何平滑扩容？"></a>分库分表后如何平滑扩容？</h1><h2 id="翻倍扩容法"><a href="#翻倍扩容法" class="headerlink" title="翻倍扩容法"></a>翻倍扩容法</h2><p>翻倍扩容法的主要思路是每次扩容，库的数量均翻倍处理，而新增的数据库中通常是由原数据库通过主从复制方式将原表数据复制一份过来，然后再升级成主库提供服务，所以也称为”从库升级法”。</p>
+<p>理论上，经过翻倍扩容法后，我们会多一倍的数据库用来存储数据和应对流量，原先数据库的磁盘使用量也将得到一半空间的释放。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/11.png?raw=true"/>
+</div>
+
+<h3 id="流程"><a href="#流程" class="headerlink" title="流程"></a>流程</h3><p>具体的流程大致如下：</p>
+<p>时间点 t1：为每个节点都新增从库，开启主从同步进行数据同步。</p>
+<p>时间点 t2：主从同步完成后，对主库进行禁写。</p>
+<p>此处禁写主要是为了保证数据的正确性。若不进行禁写操作，在以下两个时间窗口期内将出现数据不一致的问题：</p>
+<ul>
+<li><p>断开主从后，若主库不禁写，主库若还有数据写入，这部分数据将无法同步到从库中</p>
+</li>
+<li><p>因为应用服务识别到分库数翻倍的时间点无法严格一致，在某个时间点可能两台应用使用不同的分库数，运算到不同的库序号，导致错误写入</p>
+</li>
+</ul>
+<p>时间点 t3：同步完全完成后，断开主从关系，理论上此时从库和主库有着完全一样的数据集。</p>
+<p>时间点t4：从库升级为集群节点，业务应用识别到新的分库数后，将应用新的路由算法。</p>
+<p>时间点 t5：确定所有的应用均接收到库总数的配置后，放开原主库的禁写操作，此时应用完全恢复服务。</p>
+<p>最后启动离线的定时任务，清除各库中的约一半冗余数据。</p>
+<h3 id="总结-1"><a href="#总结-1" class="headerlink" title="总结"></a>总结</h3><p>通过上述迁移方案可以看出，从时间点 t2 到 t5 时间窗口呢内，需要对数据库禁写，相当于是该时间范围内服务是部分有损的，该阶段整体耗时通常是在分钟级范围内。若业务可以接受，可以在业务低峰期进行该操作。</p>
+<p>如果应用无法容忍分钟级写入不可用，例如写操作远远大于读操作的应用，此时可以：</p>
+<ul>
+<li><p>通过中间件缩短停写的时间，比如借助 Proxy 层可以实现秒级的停写</p>
+</li>
+<li><p>双写</p>
+</li>
+</ul>
+<p>该方案主要借助于 MySQL 强大完善的主从同步机制，能在事前提前准备好新的节点中大部分需要的数据，节省大量的人为数据迁移操作。但是缺点也很明显，一是过程中整个服务需要停写，业务是有损的，二是每次扩容均需要对库数量进行翻倍，会提前浪费不少的数据库资源。</p>
+<h2 id="一致性哈希扩容"><a href="#一致性哈希扩容" class="headerlink" title="一致性哈希扩容"></a>一致性哈希扩容</h2><p>假如当前数据库节点 DB0 负载或磁盘使用过大需要扩容，我们通过扩容可以达到例如下图的效果。</p>
+<p>下图中，扩容前配置了三个 Hash 分段，发现[-Inf，-10000)范围内的的数据量过大或者压力过高时，需要对其进行扩容。</p>
+<div align="center">
+<image src="https://github.com/qinjianmin/image/blob/main/db-sharding/12.png?raw=true"/>
+</div>
+
+<h3 id="流程-1"><a href="#流程-1" class="headerlink" title="流程"></a>流程</h3><p>主要步骤如下：</p>
+<p>时间点 t1：针对需要扩容的数据库节点增加从节点，开启主从同步进行数据同步。</p>
+<p>时间点 t2：完成主从同步后，对原主库进行禁写。此处原因和翻倍扩容法类似，需要保证新的从库和原来主库中数据的一致性。</p>
+<p>时间点 t3：同步完全完成后，断开主从关系，理论上此时从库和主库有着完全一样的数据集。</p>
+<p>时间点 t4：修改一致性 Hash 范围的配置，并使应用服务重新读取并生效。</p>
+<p>时间点 t5：确定所有的应用均接受到新的一致性 Hash 范围配置后，放开原主库的禁写操作，此时应用完全恢复服务。</p>
+<p>启动离线的定时任务，清除冗余数据。</p>
+<h3 id="总结-2"><a href="#总结-2" class="headerlink" title="总结"></a>总结</h3><p>该方案和翻倍扩容法的方案比较类似，但是它更加灵活，可以根据当前集群每个节点的压力情况选择性扩容，而无需整个集群同时翻倍进行扩容。</p>
+<h1 id="分库分表带来的问题有哪些？"><a href="#分库分表带来的问题有哪些？" class="headerlink" title="分库分表带来的问题有哪些？"></a>分库分表带来的问题有哪些？</h1><h2 id="全局-ID-问题"><a href="#全局-ID-问题" class="headerlink" title="全局 ID 问题"></a>全局 ID 问题</h2><p>分库分表后，多张单表中的自增主键就一定会发生冲突，不具备全局唯一性。</p>
+<p>解决方案：</p>
+<p>1）基于某个单表生成自增主键</p>
+<p>问题：这个单表就变成整个系统的瓶颈，而且也存在单点问题</p>
+<p>优化：基于多个单表+步长做自增主键</p>
+<p>2）业务上不依赖数据库的自增 ID 作唯一标识，通过其它方式生成全局 ID</p>
+<ul>
+<li><p>雪花算法</p>
+</li>
+<li><p>UUID</p>
+</li>
+<li><p>Redis</p>
+</li>
+</ul>
+<h2 id="全表扫描问题"><a href="#全表扫描问题" class="headerlink" title="全表扫描问题"></a>全表扫描问题</h2><p>单表的时候全表扫描比较容易，但是做了分库分表之后，如果要扫表的话就要把所有的物理表都要扫一遍，实现起来更复杂。</p>
+<h2 id="非分片-key-的查询问题"><a href="#非分片-key-的查询问题" class="headerlink" title="非分片 key 的查询问题"></a>非分片 key 的查询问题</h2><ul>
+<li><p>映射法：通过映射表转换</p>
+</li>
+<li><p>冗余法：基于多个 key 分表</p>
+</li>
+<li><p>基因法：非分片 key 能转换为分片 key 或者根据非分片 key 同样能获取分表信息</p>
+</li>
+</ul>
+<h2 id="事务问题"><a href="#事务问题" class="headerlink" title="事务问题"></a>事务问题</h2><p>分库后，不支持事务，想要维护数据的一致性实现起来更复杂。</p>
+<p>解决方案：</p>
+<ul>
+<li><p>分布式事务</p>
+</li>
+<li><p>保证最终一致性：MQ&#x2F;事后补偿</p>
+</li>
+</ul>
+<h2 id="分页、排序、函数问题"><a href="#分页、排序、函数问题" class="headerlink" title="分页、排序、函数问题"></a>分页、排序、函数问题</h2><p>分库分表后，不能跨表&#x2F;库进行分页、排序、函数等操作。</p>
+<p>解决方案：</p>
+<ul>
+<li><p>先在不同的分片中将数据进行排序并返回，然后将不同分片返回的结果集进行汇总和再次排序，最终返回给用户</p>
+</li>
+<li><p>使用 NoSQL 实现复杂查询（如 ES）</p>
+</li>
+</ul>
+<h1 id="总结-3"><a href="#总结-3" class="headerlink" title="总结"></a>总结</h1><p>分库分表是一种常用的由于数据量级上涨导致的性能问题的解决方案，但这种方案也不是毫无代价的，应用这种方案的同时也会引入一些新的问题，这些问题的解决成本也都不低，所以要做好评估，当分库分表的收益大于付出的代价才考虑选择这种方案。在<a href="https://qinjianmin.github.io/2024/02/28/db-sharding-practice/">《分库分表——实战篇》</a>这篇文章中我介绍了两个实际项目中分库分表的案例，可以作为参考。</p>
+<p>另外，我个人认为分库分表的必要性可能会越来越低。因为分库分表本质上是在业务层来解决数据库产品的性能问题，而目前业界已经出现了类似 TiDB 等分布式数据库产品，天然支持水平扩展。另外一些商业数据库，比如 AWS Aurora，性能非常优秀，单表支持上亿数据性能也不会有明显下降。我相信，开源数据库产品达到类似的水平也是时间问题。</p>
+<p>所以,有一天分库分表可能会成为一种落伍的技术，但是这种解决问题的思想还是可以借鉴的，比如数据切割的流程可以用于服务迁移、数据库重新选型替换等场景；通过分而治之，降低数据规模，来获取性能优化也是一种很常用的思想。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://heapdump.cn/article/3389043">阿里二面：为什么要分库分表？</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.51cto.com/article/687055.html">分库分表，我再讲最后一次！</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.51cto.com/article/709614.html">再有人问你什么是分库分表，直接把这篇文章发给他</a></li>
+<li><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1623139">MySQL：互联网公司常用分库分表方案汇总！</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.jianshu.com/p/32b3e91aa22c">分库分表需要考虑的问题及方案</a></li>
+<li><a target="_blank" rel="noopener" href="https://juejin.cn/post/6948067265925349406">分库分表会带来哪些问题</a></li>
+</ol>
+</div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/%E5%88%86%E5%BA%93%E5%88%86%E8%A1%A8/">分库分表</a></div><!--!--></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-start"><a class="article-nav-prev level level-item link-muted" href="/2024/02/27/service-migration/"><i class="level-item fas fa-chevron-left"></i><span class="level-item">服务上云那些事</span></a></div><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2024/02/26/thread/"><span class="level-item">深入理解 Java 线程</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--></div><!--!--><div class="column column-right is-4-tablet is-4-desktop is-4-widescreen  order-3 is-sticky"><div class="card widget" id="toc" data-type="toc"><div class="card-content"><div class="menu"><h3 class="menu-label">Catalogue</h3><ul class="menu-list"><li><a class="level is-mobile" href="#为什么要分库分表？"><span class="level-left"><span class="level-item">1</span><span class="level-item">为什么要分库分表？</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#垂直方向"><span class="level-left"><span class="level-item">1.1</span><span class="level-item">垂直方向</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#单库"><span class="level-left"><span class="level-item">1.1.1</span><span class="level-item">单库</span></span></a></li><li><a class="level is-mobile" href="#分表"><span class="level-left"><span class="level-item">1.1.2</span><span class="level-item">分表</span></span></a></li><li><a class="level is-mobile" href="#分库"><span class="level-left"><span class="level-item">1.1.3</span><span class="level-item">分库</span></span></a></li><li><a class="level is-mobile" href="#分库分表"><span class="level-left"><span class="level-item">1.1.4</span><span class="level-item">分库分表</span></span></a></li></ul></li><li><a class="level is-mobile" href="#水平方向"><span class="level-left"><span class="level-item">1.2</span><span class="level-item">水平方向</span></span></a></li><li><a class="level is-mobile" href="#单库-1"><span class="level-left"><span class="level-item">1.3</span><span class="level-item">单库</span></span></a></li><li><a class="level is-mobile" href="#主从分离"><span class="level-left"><span class="level-item">1.4</span><span class="level-item">主从分离</span></span></a></li><li><a class="level is-mobile" href="#分库-1"><span class="level-left"><span class="level-item">1.5</span><span class="level-item">分库</span></span></a></li><li><a class="level is-mobile" href="#分表-1"><span class="level-left"><span class="level-item">1.6</span><span class="level-item">分表</span></span></a></li><li><a class="level is-mobile" href="#分库分表-1"><span class="level-left"><span class="level-item">1.7</span><span class="level-item">分库分表</span></span></a></li><li><a class="level is-mobile" href="#总结"><span class="level-left"><span class="level-item">1.8</span><span class="level-item">总结</span></span></a></li></ul></li><li><a class="level is-mobile" href="#分库分表的方案有哪些？"><span class="level-left"><span class="level-item">2</span><span class="level-item">分库分表的方案有哪些？</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#Range-分库分表"><span class="level-left"><span class="level-item">2.1</span><span class="level-item">Range 分库分表</span></span></a></li><li><a class="level is-mobile" href="#Hash-分库分表"><span class="level-left"><span class="level-item">2.2</span><span class="level-item">Hash 分库分表</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#标准的二次分片法"><span class="level-left"><span class="level-item">2.2.1</span><span class="level-item">标准的二次分片法</span></span></a></li></ul></li><li><a class="level is-mobile" href="#一致性哈希法"><span class="level-left"><span class="level-item">2.3</span><span class="level-item">一致性哈希法</span></span></a></li></ul></li><li><a class="level is-mobile" href="#分库分表后如何平滑扩容？"><span class="level-left"><span class="level-item">3</span><span class="level-item">分库分表后如何平滑扩容？</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#翻倍扩容法"><span class="level-left"><span class="level-item">3.1</span><span class="level-item">翻倍扩容法</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#流程"><span class="level-left"><span class="level-item">3.1.1</span><span class="level-item">流程</span></span></a></li><li><a class="level is-mobile" href="#总结-1"><span class="level-left"><span class="level-item">3.1.2</span><span class="level-item">总结</span></span></a></li></ul></li><li><a class="level is-mobile" href="#一致性哈希扩容"><span class="level-left"><span class="level-item">3.2</span><span class="level-item">一致性哈希扩容</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#流程-1"><span class="level-left"><span class="level-item">3.2.1</span><span class="level-item">流程</span></span></a></li><li><a class="level is-mobile" href="#总结-2"><span class="level-left"><span class="level-item">3.2.2</span><span class="level-item">总结</span></span></a></li></ul></li></ul></li><li><a class="level is-mobile" href="#分库分表带来的问题有哪些？"><span class="level-left"><span class="level-item">4</span><span class="level-item">分库分表带来的问题有哪些？</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#全局-ID-问题"><span class="level-left"><span class="level-item">4.1</span><span class="level-item">全局 ID 问题</span></span></a></li><li><a class="level is-mobile" href="#全表扫描问题"><span class="level-left"><span class="level-item">4.2</span><span class="level-item">全表扫描问题</span></span></a></li><li><a class="level is-mobile" href="#非分片-key-的查询问题"><span class="level-left"><span class="level-item">4.3</span><span class="level-item">非分片 key 的查询问题</span></span></a></li><li><a class="level is-mobile" href="#事务问题"><span class="level-left"><span class="level-item">4.4</span><span class="level-item">事务问题</span></span></a></li><li><a class="level is-mobile" href="#分页、排序、函数问题"><span class="level-left"><span class="level-item">4.5</span><span class="level-item">分页、排序、函数问题</span></span></a></li></ul></li><li><a class="level is-mobile" href="#总结-3"><span class="level-left"><span class="level-item">5</span><span class="level-item">总结</span></span></a></li><li><a class="level is-mobile" href="#参考"><span class="level-left"><span class="level-item">6</span><span class="level-item">参考</span></span></a></li></ul></div></div><style>#toc .menu-list > li > a.is-active + .menu-list { display: block; }#toc .menu-list > li > a + .menu-list { display: none; }</style><script src="/js/toc.js" defer></script></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a><p class="is-size-7"><span>&copy; 2024 Jamin</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">人生如逆旅，我亦是行人</p></div><div class="level-end"></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("en");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="Back to top" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="Type something..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"Type something...","untitled":"(Untitled)","posts":"Posts","pages":"Pages","categories":"Categories","tags":"Tags"});
+        });</script></body></html>
