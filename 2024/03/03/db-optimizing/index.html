@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>如何进行数据库性能优化？ - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本文分析了 SQL 执行慢的可能原因，总结了数据库性能优化的一般步骤，最后介绍几个实际项目中的 SQL 优化案例（持续补充）。"><meta property="og:type" content="article"><meta property="og:title" content="如何进行数据库性能优化？"><meta property="og:url" content="http://qinjianmin.github.io/2024/03/03/db-optimizing/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="本文分析了 SQL 执行慢的可能原因，总结了数据库性能优化的一般步骤，最后介绍几个实际项目中的 SQL 优化案例（持续补充）。"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2024-03-03T12:22:31.000Z"><meta property="article:modified_time" content="2024-03-04T07:06:39.286Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="项目实战"><meta property="article:tag" content="SQL 优化"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2024/03/03/db-optimizing/"},"headline":"如何进行数据库性能优化？","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2024-03-03T12:22:31.000Z","dateModified":"2024-03-04T07:06:39.286Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"本文分析了 SQL 执行慢的可能原因，总结了数据库性能优化的一般步骤，最后介绍几个实际项目中的 SQL 优化案例（持续补充）。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2024/03/03/db-optimizing/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+  (function () {
+      function switchTab() {
+          if (!location.hash) {
+            return;
+          }
+
+          const id = '#' + CSS.escape(location.hash.substring(1));
+          const $tabMenu = document.querySelector(`.tabs a[href="${id}"]`);
+          if (!$tabMenu) {
+            return;
+          }
+
+          const $tabMenuContainer = $tabMenu.parentElement.parentElement;
+          Array.from($tabMenuContainer.children).forEach($menu => $menu.classList.remove('is-active'));
+          Array.from($tabMenuContainer.querySelectorAll('a'))
+              .map($menu => document.getElementById($menu.getAttribute("href").substring(1)))
+              .forEach($content => $content.classList.add('is-hidden'));
+
+          if ($tabMenu) {
+              $tabMenu.parentElement.classList.add('is-active');
+          }
+          const $activeTab = document.querySelector(id);
+          if ($activeTab) {
+              $activeTab.classList.remove('is-hidden');
+          }
+      }
+      switchTab();
+      window.addEventListener('hashchange', switchTab, false);
+  })();
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2024-03-03T12:22:31.000Z" title="3/3/2024, 8:22:31 PM">2024-03-03</time></span><span class="level-item">Updated&nbsp;<time dateTime="2024-03-04T07:06:39.286Z" title="3/4/2024, 3:06:39 PM">2024-03-04</time></span><span class="level-item"><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><span> / </span><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/MySQL/">MySQL</a></span><span class="level-item">21 minutes read (About 3193 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">如何进行数据库性能优化？</h1><div class="content"><h1 id="慢-SQL-原因及方案"><a href="#慢-SQL-原因及方案" class="headerlink" title="慢 SQL 原因及方案"></a>慢 SQL 原因及方案</h1><p>SQL 执行慢的原因有很多，比如下面这些：</p>
+<ul>
+<li><p>索引问题</p>
+<ul>
+<li>索引失效</li>
+<li>索引设计问题</li>
+<li>MySQL 选错了索引</li>
+</ul>
+</li>
+<li><p>复杂查询</p>
+</li>
+<li><p>数据量过大</p>
+</li>
+<li><p>锁竞争</p>
+</li>
+<li><p>硬件资源不足</p>
+</li>
+<li><p>数据库负载过高</p>
+</li>
+<li><p>数据库配置问题</p>
+</li>
+</ul>
+<p>针对不同的原因，需要采用不同的方案：</p>
+<h2 id="索引问题"><a href="#索引问题" class="headerlink" title="索引问题"></a>索引问题</h2><p>像索引失效和索引设计问题，是 SQL 设计之初就可以发现和避免的，一方面对索引原理要有基本的掌握，另一方面在 SQL 上线前可以通过 expalin 查看执行计划进行规避。</p>
+<p>MySQL 选错索引可能是由于不同的原因导致的，比如数据库统计信息不准确，可以通过 analyze table t 命令来重新统计索引信息。</p>
+<p>另外更常见的原因是，MySQL 查询优化器分析得出的理论上的最佳索引，因为实际数据分布的原因，查询速度并不是最快的。这里描述比较抽象，文章后面 第一个 SQL 优化案例就是一个 MySQL 选错索引的例子，可以结合起来理解。</p>
+<p>这种情况下就需要我们采取一定的措施去对索引进行修正。常用的方案有以下几种：</p>
+<ul>
+<li><p>通过 force index 强制指定索引</p>
+</li>
+<li><p>修改 SQL 语句，引导 MySQL 使用我们期望的索引</p>
+</li>
+<li><p>新建一个更合适的索引来给优化器选择，或者删掉误用的索引</p>
+</li>
+</ul>
+<p>其中，很多人不太推荐使用 force index ，一是将数据库的问题放在了业务中来解决，设计上不够优美，二是把索引名耦合进了 SQL 语句中，索引名改了后，SQL 也得修改，三是迁移到别的数据库的话，这个语法未必兼容，四是修改 SQL 语句加上 force index 之后还要测试和发布，整个过程不够敏捷。</p>
+<p>第二种通过修改引导数据库的方式可能导致 SQL 的可读性变得很差，让人不理解设计者的意图，往往不被推荐使用。</p>
+<p>第三种，增加和删除索引是比较好的方案，但应用场景非常有限，其它时候就只能使用前面两种方案了。</p>
+<h2 id="复杂查询"><a href="#复杂查询" class="headerlink" title="复杂查询"></a>复杂查询</h2><p>复杂查询是指 SQL 查询语句本身过于复杂，可能包含多个连接、嵌套子查询、聚合函数等，导致数据库需要花费更多的时间来解析和执行查询。</p>
+<p>这种场景下如果对数据库查询效率还有比较高的要求，则可以考虑其它对复杂查询支持更加好的数据库，比如 ES。</p>
+<p>如果不要求数据库查询效率，比如离线统计需求、运营后台查询需求，为了避免慢查询 SQL 占用大量连接影响线上业务，可以划分出单独的从库实例提供给这类 SQL 使用。</p>
+<h2 id="数据量过大"><a href="#数据量过大" class="headerlink" title="数据量过大"></a>数据量过大</h2><p>单表数据量过大，则需要考虑分表：<a href="https://qinjianmin.github.io/2024/02/26/db-sharding-theory/">《分库分表——原理篇》</a></p>
+<h2 id="锁竞争"><a href="#锁竞争" class="headerlink" title="锁竞争"></a>锁竞争</h2><p>锁竞争可能是存在需要频繁更新的热点数据，也可能是存在长事务导致的。热点数据的话可以考虑通过将一行改成逻辑上的多行来减少锁冲突，或者通过写缓存，异步更新数据库的方式避免锁冲突。</p>
+<p>如果是长事务，则需要进一步分析导致长事务的原因，采取相应的解决措施，比如在开发过程中，尽可能的减小事务范围，少用长事务。另外，如果事务中需要锁多个行，要把最可能造成锁冲突、最可能影响并发度的锁尽量往后放。</p>
+<h2 id="硬件资源不足"><a href="#硬件资源不足" class="headerlink" title="硬件资源不足"></a>硬件资源不足</h2><p>数据库服务器的硬件资源不足，例如 CPU、内存、磁盘等，无法满足大量查询请求或者写请求的处理需求，导致负载增加。这种情况下可以采取的方案，包括升级数据库硬件配置，或者增加从节点承接更多的读流量，或者通过分库分担写流量。</p>
+<h2 id="数据库负载过高"><a href="#数据库负载过高" class="headerlink" title="数据库负载过高"></a>数据库负载过高</h2><p>上面也提到了，数据库负载过高可能是由于硬件资源不足导致的。但有时可能是一些特殊场景，比如双十一、促销活动等导致的请求突增，这时候如果采取升级配置、增加节点等方案成本上可能不是那么划算，则可以考虑增加缓存来缓解数据库压力。</p>
+<h2 id="数据库服务器配置问题"><a href="#数据库服务器配置问题" class="headerlink" title="数据库服务器配置问题"></a>数据库服务器配置问题</h2><p>数据库服务器配置，比如缓冲池大小等，这些配置往往是由 DBA 来掌控的，业务研发不需要也无权进行调整。而且这类配置在经历大量生产环境的考验后通常已经形成了最佳实践，出问题的概率很小。所以生产实践中很少遇到需要调优服务器的参数的情况，但我们分析问题时还是需要考虑到这种可能性。</p>
+<blockquote>
+<p>上面这几种慢 SQL 原因和方案有一个前提，那就是数据库服务器执行 SQl 慢，而另一种也比较常见的情况是，服务器执行 SQL 正常，而客户端出现慢 SQL，这种情况则需要考虑客户端配置，如连接池大小，以及网络延迟等因素的影响。</p>
+</blockquote>
+<h2 id="小结"><a href="#小结" class="headerlink" title="小结"></a>小结</h2><p>面对不同的问题和原因，我们可以采取不同的措施。另外，从提前规避的角度来思考，不同的开发阶段，需要考虑的问题也不一样。往往越早需要思考，越早能够应用的方案，也是优先级更高的方案。举个例子，针对具体的业务场景选择合适数据库，比选定一个不合适的数据后，再去进行各种优化措施，显然要更好。</p>
+<p>这里把所有可以采取的措施，按照开发周期中从早到晚进行一个总结。</p>
+<ul>
+<li><p>选择合适的 DBMS</p>
+</li>
+<li><p>表设计优化</p>
+</li>
+<li><p>逻辑查询优化</p>
+</li>
+<li><p>物理查询优化</p>
+</li>
+<li><p>加缓存</p>
+</li>
+<li><p>库级优化</p>
+</li>
+</ul>
+<p>概括下，前两个方案在于选择，中间两个方案是 SQL 的查询优化，最后两个方案在于引入外援，不管是其他类型的数据库，还是更多的同类型的数据库。</p>
+<h1 id="数据库调优步骤"><a href="#数据库调优步骤" class="headerlink" title="数据库调优步骤"></a>数据库调优步骤</h1><p>上面一小节介绍了常见的慢 SQL 原因和解决方案，但当我们真的面对慢 SQL 时，该如何确定是哪种原因呢？下面这张图很好的说明了一般的思考过程和调优步骤。</p>
+<div align="center">
+<image src="https://raw.githubusercontent.com/qinjianmin/image/main/db-optimizing/1.webp"/>
+</div>
+
+<p>整个流程分为观察（S）和行动（A）两类操作，通过观察了解数据库整体的运行状态，通过性能分析工具了解执行慢的 SQL 都有哪些，查看具体的 SQL 执行计划，甚至是 SQL 执行中的每一步的成本代价，最终定位问题所在，找到了问题，再采取相应的行动。</p>
+<p>关于这张图的具体细节这里就不进行讲解了，可以查看图片来源文章，也就是本文参考文章 2 进行进一步的学习。这里需要指出的一点是，虽然是流程图，但真正进行数据库调优时，并不一定是自上而下顺序进行的，完全可以并行执行多种观察动作，综合得出最可能的一个原因，然后首先针对这个最可能的原因采取措施，进行验证。</p>
+<h1 id="数据库调优案例"><a href="#数据库调优案例" class="headerlink" title="数据库调优案例"></a>数据库调优案例</h1><p>本小结中介绍一些实际业务中遇到比较典型的 SQL 慢查询，分析其原因，介绍当时采取的方案以及效果。相关案例会持续补充。</p>
+<h2 id="案例1：数据库选错索引"><a href="#案例1：数据库选错索引" class="headerlink" title="案例1：数据库选错索引"></a>案例1：数据库选错索引</h2><p>系统中有这样一张表</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> puri_video_user (</span><br><span class="line"> id <span class="type">bigint</span>(<span class="number">20</span>) unsigned <span class="keyword">NOT</span> <span class="keyword">NULL</span> AUTO_INCREMENT COMMENT <span class="string">&#x27;主键&#x27;</span>,</span><br><span class="line"> user_id <span class="type">varchar</span>(<span class="number">100</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;&#x27;</span> COMMENT <span class="string">&#x27;用户id&#x27;</span>,</span><br><span class="line"> doc_id <span class="type">varchar</span>(<span class="number">100</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;&#x27;</span> COMMENT <span class="string">&#x27;内容池统一ID&#x27;</span>,</span><br><span class="line"> audit_status tinyint(<span class="number">4</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span> COMMENT <span class="string">&#x27;视频审核状态1 待审核 2审核通过 3审核拒绝 4管理员cms设置仅自己可见&#x27;</span>,</span><br><span class="line"> visible_status tinyint(<span class="number">4</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span> COMMENT <span class="string">&#x27;可见状态, 1:用户设置所有用户可见 2:用户设置仅自己可见&#x27;</span>,</span><br><span class="line"> delete_status tinyint(<span class="number">4</span>) <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span> COMMENT <span class="string">&#x27;用户删除状态 0未删除 1用户自己删除且内容池没有删除 2用户自己删除且内容池删除成功&#x27;</span>,</span><br><span class="line"> create_time <span class="type">timestamp</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;2018-05-29 00:00:00&#x27;</span> COMMENT <span class="string">&#x27;创建时间&#x27;</span>,</span><br><span class="line"> update_time <span class="type">timestamp</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="built_in">CURRENT_TIMESTAMP</span> <span class="keyword">ON</span> <span class="keyword">UPDATE</span> <span class="built_in">CURRENT_TIMESTAMP</span> COMMENT <span class="string">&#x27;更新时间&#x27;</span>,</span><br><span class="line"> <span class="keyword">PRIMARY</span> KEY (id),</span><br><span class="line"> <span class="keyword">UNIQUE</span> KEY uk_idx_docid (doc_id),</span><br><span class="line"> KEY idx_create_time (create_time),</span><br><span class="line"> KEY idx_uid_status (user_id,audit_status,delete_status,visible_status)</span><br><span class="line">) ENGINE<span class="operator">=</span>InnoDB AUTO_INCREMENT<span class="operator">=</span><span class="number">193268096</span> <span class="keyword">DEFAULT</span> CHARSET<span class="operator">=</span>utf8mb4 COMMENT<span class="operator">=</span><span class="string">&#x27;视频用户信息表&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>发生慢查询的 SQL 如下，</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> puri_video_user <span class="keyword">where</span> user_id <span class="operator">=</span> <span class="string">&#x27;724ce5f73221b9ce&#x27;</span> <span class="keyword">and</span> delete_status <span class="operator">=</span> <span class="number">0</span> <span class="keyword">and</span> id <span class="operator">&lt;</span> <span class="number">2147483647</span> <span class="keyword">order</span> <span class="keyword">by</span> id <span class="keyword">desc</span> limit <span class="number">12</span>\G</span><br></pre></td></tr></table></figure>
+
+<p>explain 查看执行计划如下：</p>
+<div align="center">
+<image src="https://raw.githubusercontent.com/qinjianmin/image/main/db-optimizing/2.png"/>
+</div>
+
+<p>发现 MySQL 同时使用了 PRIMARY 和 idx_uid_status 这两个索引，最后取了交集。推测 SQL 执行慢的原因可能是这两种：</p>
+<ul>
+<li><p>走主键索引扫描数据过多</p>
+</li>
+<li><p>走 idx_uid_status 索引排序比较耗时</p>
+</li>
+</ul>
+<p>然后对比了强制走主键索引和强制走 idx_uid_status 索引耗时，发现走主键索引的话和优化器给出的索引方案耗时接近，走 idx_uid_status 索引耗时有明显下降。</p>
+<p>所以最终确定了通过 force index 强制走 idx_uid_status 索引的方案。上线后慢查询频率确实明显降低，但并未完全消失，关于依然存在的慢 SQL，在案例二中进一步介绍。</p>
+<h2 id="案例2：排序数据过多"><a href="#案例2：排序数据过多" class="headerlink" title="案例2：排序数据过多"></a>案例2：排序数据过多</h2><p>经过案例一种的优化，SQL 如下所示：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> puri_video_user force index(idx_uid_status) <span class="keyword">where</span> user_id <span class="operator">=</span> <span class="string">&#x27;724ce5f73221b9ce&#x27;</span> <span class="keyword">and</span> delete_status <span class="operator">=</span> <span class="number">0</span> <span class="keyword">and</span> id <span class="operator">&lt;</span> <span class="number">2147483647</span> <span class="keyword">order</span> <span class="keyword">by</span> id <span class="keyword">desc</span> limit <span class="number">12</span>\G</span><br></pre></td></tr></table></figure>
+
+<p>慢查询频率虽然明显降低，但依然存在，查看了几个例子，发现慢 SQL 有这样一个一个特点，就是 user_id 对应的用户，对应的视频总数非常多。因为这条 SQL 需要对满足条件的数据进行排序，如果需要排序的数据越多，则排序越慢，而且可能会使用临时文件进行外部排序，导致查询性能严重下降。</p>
+<p>这里也说明方案一中的方案没有完全奏效，对于视频数少的用户效果不错，但是如果视频数很多，依然会因为排序导致慢查询。</p>
+<p>这里考虑为什么需要排序，因为查询条件中包含了 user_id 和 delete_status 这两个字段，但是索引 idx_uid_status 则是 user_id, audit_status, delete_status, visible_status 四个字段，delete_status 位于第三个位置，无法利用耳机索引主键的有序性。</p>
+<p>所以如果要避免排序，则需要新建 user_id 和 delete_status 的联合索引。</p>
+<h2 id="案例3：分库分表"><a href="#案例3：分库分表" class="headerlink" title="案例3：分库分表"></a>案例3：分库分表</h2><p><a href="https://qinjianmin.github.io/2024/02/28/db-sharding-practice/">《分库分表——实战篇》</a></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文首先介绍了慢 SQL 可能的原因以及对应的方案，还介绍了数据性能优化可以从那几个维度去思考，在实际中按照什么样的步骤去排查问题，选择合适的方案。最后则是在实际业务中的几个数据库性能优化案例，以后遇到一些比较典型的问题，也会持续补充在这里。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
+<li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/110492">当我们思考数据库调优的时候，都有哪些维度可以选择？</a></li>
+<li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/126169">如何使用性能分析工具定位SQL执行慢的原因？</a></li>
+<li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/71173">MySQL为什么有时候会选错索引？</a></li>
+</ol>
+</div><div class="article-tags is-size-7 mb-4"><span class="mr-2">#</span><a class="link-muted mr-2" rel="tag" href="/tags/%E9%A1%B9%E7%9B%AE%E5%AE%9E%E6%88%98/">项目实战</a><a class="link-muted mr-2" rel="tag" href="/tags/SQL-%E4%BC%98%E5%8C%96/">SQL 优化</a></div><!--!--></article></div><!--!--><nav class="post-navigation mt-4 level is-mobile"><div class="level-end"><a class="article-nav-next level level-item link-muted" href="/2024/02/28/db-sharding-practice/"><span class="level-item">分库分表——实战篇</span><i class="level-item fas fa-chevron-right"></i></a></div></nav><!--!--></div><!--!--><div class="column column-right is-4-tablet is-4-desktop is-4-widescreen  order-3 is-sticky"><div class="card widget" id="toc" data-type="toc"><div class="card-content"><div class="menu"><h3 class="menu-label">Catalogue</h3><ul class="menu-list"><li><a class="level is-mobile" href="#慢-SQL-原因及方案"><span class="level-left"><span class="level-item">1</span><span class="level-item">慢 SQL 原因及方案</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#索引问题"><span class="level-left"><span class="level-item">1.1</span><span class="level-item">索引问题</span></span></a></li><li><a class="level is-mobile" href="#复杂查询"><span class="level-left"><span class="level-item">1.2</span><span class="level-item">复杂查询</span></span></a></li><li><a class="level is-mobile" href="#数据量过大"><span class="level-left"><span class="level-item">1.3</span><span class="level-item">数据量过大</span></span></a></li><li><a class="level is-mobile" href="#锁竞争"><span class="level-left"><span class="level-item">1.4</span><span class="level-item">锁竞争</span></span></a></li><li><a class="level is-mobile" href="#硬件资源不足"><span class="level-left"><span class="level-item">1.5</span><span class="level-item">硬件资源不足</span></span></a></li><li><a class="level is-mobile" href="#数据库负载过高"><span class="level-left"><span class="level-item">1.6</span><span class="level-item">数据库负载过高</span></span></a></li><li><a class="level is-mobile" href="#数据库服务器配置问题"><span class="level-left"><span class="level-item">1.7</span><span class="level-item">数据库服务器配置问题</span></span></a></li><li><a class="level is-mobile" href="#小结"><span class="level-left"><span class="level-item">1.8</span><span class="level-item">小结</span></span></a></li></ul></li><li><a class="level is-mobile" href="#数据库调优步骤"><span class="level-left"><span class="level-item">2</span><span class="level-item">数据库调优步骤</span></span></a></li><li><a class="level is-mobile" href="#数据库调优案例"><span class="level-left"><span class="level-item">3</span><span class="level-item">数据库调优案例</span></span></a><ul class="menu-list"><li><a class="level is-mobile" href="#案例1：数据库选错索引"><span class="level-left"><span class="level-item">3.1</span><span class="level-item">案例1：数据库选错索引</span></span></a></li><li><a class="level is-mobile" href="#案例2：排序数据过多"><span class="level-left"><span class="level-item">3.2</span><span class="level-item">案例2：排序数据过多</span></span></a></li><li><a class="level is-mobile" href="#案例3：分库分表"><span class="level-left"><span class="level-item">3.3</span><span class="level-item">案例3：分库分表</span></span></a></li></ul></li><li><a class="level is-mobile" href="#总结"><span class="level-left"><span class="level-item">4</span><span class="level-item">总结</span></span></a></li><li><a class="level is-mobile" href="#参考"><span class="level-left"><span class="level-item">5</span><span class="level-item">参考</span></span></a></li></ul></div></div><style>#toc .menu-list > li > a.is-active + .menu-list { display: block; }#toc .menu-list > li > a + .menu-list { display: none; }</style><script src="/js/toc.js" defer></script></div></div></div></div></section><footer class="footer"><div class="container"><div class="level"><div class="level-start"><a class="footer-logo is-block mb-2" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a><p class="is-size-7"><span>&copy; 2024 Jamin</span>  Powered by <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a> &amp; <a href="https://github.com/ppoffice/hexo-theme-icarus" target="_blank" rel="noopener">Icarus</a></p><p class="is-size-7">人生如逆旅，我亦是行人</p></div><div class="level-end"></div></div></div></footer><script src="https://cdn.jsdelivr.net/npm/jquery@3.3.1/dist/jquery.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/min/moment-with-locales.min.js"></script><script src="https://cdn.jsdelivr.net/npm/clipboard@2.0.4/dist/clipboard.min.js" defer></script><script>moment.locale("en");</script><script>var IcarusThemeSettings = {
+            article: {
+                highlight: {
+                    clipboard: true,
+                    fold: 'unfolded'
+                }
+            }
+        };</script><script src="/js/column.js"></script><script src="/js/animation.js"></script><a id="back-to-top" title="Back to top" href="javascript:;"><i class="fas fa-chevron-up"></i></a><script src="/js/back_to_top.js" defer></script><script src="/js/main.js" defer></script><div class="searchbox"><div class="searchbox-container"><div class="searchbox-header"><div class="searchbox-input-container"><input class="searchbox-input" type="text" placeholder="Type something..."></div><a class="searchbox-close" href="javascript:;">×</a></div><div class="searchbox-body"></div></div></div><script src="/js/insight.js" defer></script><script>document.addEventListener('DOMContentLoaded', function () {
+            loadInsight({"contentUrl":"/content.json"}, {"hint":"Type something...","untitled":"(Untitled)","posts":"Posts","pages":"Pages","categories":"Categories","tags":"Tags"});
+        });</script></body></html>
