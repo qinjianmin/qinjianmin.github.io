@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>Redis 做缓存可能面临哪些问题？ - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"><meta property="og:type" content="article"><meta property="og:title" content="Redis 做缓存可能面临哪些问题？"><meta property="og:url" content="http://qinjianmin.github.io/2023/11/13/redis-problem/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2023-11-13T06:54:44.000Z"><meta property="article:modified_time" content="2024-03-04T07:35:40.089Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="缓存一致性"><meta property="article:tag" content="缓存雪崩"><meta property="article:tag" content="缓存穿透"><meta property="article:tag" content="BigKey"><meta property="article:tag" content="HotKey"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2023/11/13/redis-problem/"},"headline":"Redis 做缓存可能面临哪些问题？","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2023-11-13T06:54:44.000Z","dateModified":"2024-03-04T07:35:40.089Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2023/11/13/redis-problem/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"><title>Redis 做缓存可能面临哪些问题？ - Jamin&#039;s BlOG</title><link rel="manifest" href="/manifest.json"><meta name="application-name" content="Jamin&#039;s BlOG"><meta name="msapplication-TileImage" content="/img/favicon.svg"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Jamin&#039;s BlOG"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="description" content="本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"><meta property="og:type" content="article"><meta property="og:title" content="Redis 做缓存可能面临哪些问题？"><meta property="og:url" content="http://qinjianmin.github.io/2023/11/13/redis-problem/"><meta property="og:site_name" content="Jamin&#039;s BlOG"><meta property="og:description" content="本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"><meta property="og:locale" content="en_US"><meta property="og:image" content="http://qinjianmin.github.io/img/og_image.png"><meta property="article:published_time" content="2023-11-13T06:54:44.000Z"><meta property="article:modified_time" content="2024-03-11T15:43:00.879Z"><meta property="article:author" content="Jamin"><meta property="article:tag" content="缓存一致性"><meta property="article:tag" content="缓存雪崩"><meta property="article:tag" content="缓存穿透"><meta property="article:tag" content="BigKey"><meta property="article:tag" content="HotKey"><meta property="twitter:card" content="summary"><meta property="twitter:image:src" content="http://qinjianmin.github.io/img/og_image.png"><script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://qinjianmin.github.io/2023/11/13/redis-problem/"},"headline":"Redis 做缓存可能面临哪些问题？","image":["http://qinjianmin.github.io/img/og_image.png"],"datePublished":"2023-11-13T06:54:44.000Z","dateModified":"2024-03-11T15:43:00.879Z","author":{"@type":"Person","name":"Jamin"},"publisher":{"@type":"Organization","name":"Jamin's BlOG","logo":{"@type":"ImageObject","url":"http://qinjianmin.github.io/image/logo.svg"}},"description":"本文介绍了 Redis 做缓存时，可能面临的问题，以及这些问题的解决方案，包括缓存一致性、缓存雪崩、穿透、击穿、BigKey、HotKey 等。"}</script><link rel="canonical" href="http://qinjianmin.github.io/2023/11/13/redis-problem/"><link rel="icon" href="/img/favicon.svg"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v6.0.0/css/all.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@9.12.0/styles/atom-one-light.css"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@400;600&amp;family=Source+Code+Pro"><link rel="stylesheet" href="/css/default.css"><style>body>.footer,body>.navbar,body>.section{opacity:0}</style><!--!--><!-- hexo injector head_end start --><script>
   (function () {
       function switchTab() {
           if (!location.hash) {
@@ -29,7 +29,7 @@
       switchTab();
       window.addEventListener('hashchange', switchTab, false);
   })();
-  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2023-11-13T06:54:44.000Z" title="11/13/2023, 2:54:44 PM">2023-11-13</time></span><span class="level-item">Updated&nbsp;<time dateTime="2024-03-04T07:35:40.089Z" title="3/4/2024, 3:35:40 PM">2024-03-04</time></span><span class="level-item"><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><span> / </span><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/Redis/">Redis</a></span><span class="level-item">21 minutes read (About 3079 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">Redis 做缓存可能面临哪些问题？</h1><div class="content"><p>Redis 做缓存是提升系统性能的利器，但同时也会面临一些问题。本文总结了使用缓存常见的几种问题，以及应对这些问题的方法。</p>
+  </script><!-- hexo injector head_end end --><meta name="generator" content="Hexo 7.0.0"></head><body class="is-2-column"><nav class="navbar navbar-main"><div class="container navbar-container"><div class="navbar-brand justify-content-center"><a class="navbar-item navbar-logo" href="/"><img src="/image/logo.svg" alt="Jamin&#039;s BlOG" height="28"></a></div><div class="navbar-menu"><div class="navbar-start"><a class="navbar-item" href="/">Home</a><a class="navbar-item" href="/archives">Archives</a><a class="navbar-item" href="/categories">Categories</a><a class="navbar-item" href="/tags">Tags</a></div><div class="navbar-end"><a class="navbar-item is-hidden-tablet catalogue" title="Catalogue" href="javascript:;"><i class="fas fa-list-ul"></i></a><a class="navbar-item search" title="Search" href="javascript:;"><i class="fas fa-search"></i></a></div></div></div></nav><section class="section"><div class="container"><div class="columns"><div class="column order-2 column-main is-8-tablet is-8-desktop is-8-widescreen"><div class="card"><article class="card-content article" role="article"><div class="article-meta is-size-7 is-uppercase level is-mobile"><div class="level-left"><span class="level-item">Posted&nbsp;<time dateTime="2023-11-13T06:54:44.000Z" title="11/13/2023, 2:54:44 PM">2023-11-13</time></span><span class="level-item">Updated&nbsp;<time dateTime="2024-03-11T15:43:00.879Z" title="3/11/2024, 11:43:00 PM">2024-03-11</time></span><span class="level-item"><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/">数据库</a><span> / </span><a class="link-muted" href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/Redis/">Redis</a></span><span class="level-item">20 minutes read (About 3049 words)</span></div></div><h1 class="title is-3 is-size-4-mobile">Redis 做缓存可能面临哪些问题？</h1><div class="content"><p>Redis 做缓存是提升系统性能的利器，但同时也会面临一些问题。本文总结了使用缓存常见的几种问题，以及应对这些问题的方法。</p>
 <h1 id="缓存穿透"><a href="#缓存穿透" class="headerlink" title="缓存穿透"></a>缓存穿透</h1><p>对数据库做缓存时，大部分流量从缓存中返回，少部分未命中缓存的流量才会请求到数据库中，数据库的压力就会比较低。但如果数据在数据库中不存在，自然也不会在缓存中存在，这类流量每次都无法命中缓存，都会请求到数据库中，这样缓存就无法起到降低数据库压力的作用。这种查询不存在数据的现象叫做缓存穿透。</p>
 <p>缓存穿透可能是业务逻辑固有的问题，也可能是恶意攻击导致的。针对这两种情况，可以采取的应对措施也不同。</p>
 <ul>
@@ -49,16 +49,21 @@
 <p>缓存雪崩可能是由于服务有专门的缓存预热功能，或者大量数据都是由某一次冷操作加载的，这样导致由此载入缓存的数据具有相同的过期时间，在同一时刻一起失效；还可能是缓存服务崩溃重启，造成大量数据同时失效。</p>
 <p>针对缓存雪崩，我们可以采取以下三种方案：</p>
 <ol>
-<li>提升缓存系统的可用性，比如集群部署，支持故障检测、主备切换等；</li>
-<li>使用本地缓存，各个服务节点的本地缓存通常具有不同的加载时间，从而过期时间就会比较分散</li>
-<li>将缓存的过期时间从固定时间改为一个时间段内的随机事件，比如原来是两个小时过期，现在设置为 110 分钟到 130 分钟之间的某个随机值</li>
+<li><p>提升缓存系统的可用性，比如集群部署，支持故障检测、主备切换等；</p>
+</li>
+<li><p>使用本地缓存，各个服务节点的本地缓存通常具有不同的加载时间，从而过期时间就会比较分散</p>
+</li>
+<li><p>将缓存的过期时间从固定时间改为一个时间段内的随机事件，比如原来是两个小时过期，现在设置为 110 分钟到 130 分钟之间的某个随机值</p>
+</li>
 </ol>
 <h1 id="缓存污染"><a href="#缓存污染" class="headerlink" title="缓存污染"></a>缓存污染</h1><p>缓存污染是指缓存和数据库数据不一致的现象。通常使用缓存时，不会追求强一致性，但是最终一致性还是需要保证的。</p>
 <p>缓存污染问题通常是由于代码开发不规范导致的，比如更新缓存数据后，由于某些原因，比如业务发生异常回滚，导致数据没有写入数据库中，这时缓存中数据是新的，但是数据库还是就数据。</p>
 <p>为了尽可能保证缓存数据的一致性，业内总结了很多更新缓存的设计模式，包括 Cache Aside、Read&#x2F;Write Through、Write Behind Caching 等等，其中最常用的是 Cache Aside 模式，因为它最简单、成本最低。主要内容可以概括为以下两点：</p>
 <ul>
-<li>读数据时，首先读缓存，没有缓存，再度数据源，然后将数据写入缓存，再响应请求</li>
-<li>写数据时，先写数据源，然后失效缓存</li>
+<li><p>读数据时，首先读缓存，没有缓存，再度数据源，然后将数据写入缓存，再响应请求</p>
+</li>
+<li><p>写数据时，先写数据源，然后失效缓存</p>
+</li>
 </ul>
 <p>写数据时，这里要注意两点。</p>
 <p>一个是先后顺序一定是先数据源，再缓存。如果先失效缓存，再更新数据源，一定存在一段时间内缓存已经删除完毕，数据源还未更新。此时如果有读请求进来，无法命中缓存，就会到达数据源中。</p>
@@ -69,51 +74,92 @@
 <h1 id="BigKey"><a href="#BigKey" class="headerlink" title="BigKey"></a>BigKey</h1><p>string 类型超过 10KB，hash、list、set、zset 元素个数超过 5000，可以认为是 big key，可能导致 Redis 性能下降。</p>
 <p>BigKey 的产生可能有下面这些原因：</p>
 <ul>
-<li>未正确使用 Redis，如使用 String 类型的 key 存放大体积二进制文件型数据</li>
-<li>业务规划不足，没有对 key 中的成员进行合理的拆分，造成个别 key 中的成员数量过多</li>
-<li>未定期清理无效数据，造成如 HASH 类型 key 中的成员持续不断地增加</li>
-<li>服务发生异常，如使用 LIST 类型 key 的业务消费侧发生代码故障，造成对应key 的成员只增不减</li>
+<li><p>未正确使用 Redis，如使用 String 类型的 key 存放大体积二进制文件型数据</p>
+</li>
+<li><p>业务规划不足，没有对 key 中的成员进行合理的拆分，造成个别 key 中的成员数量过多</p>
+</li>
+<li><p>未定期清理无效数据，造成如 HASH 类型 key 中的成员持续不断地增加</p>
+</li>
+<li><p>服务发生异常，如使用 LIST 类型 key 的业务消费侧发生代码故障，造成对应key 的成员只增不减</p>
+</li>
 </ul>
 <p>BigKey 可能导致以下问题：</p>
 <ul>
-<li>大量占用内存，引发操作阻塞或重要的 key被逐出，甚至引发内存溢出</li>
-<li>集群架构下，某个数据分片的内存使用率远超其他数据分片，无法使数据分片的内存资源达到均衡</li>
-<li>命令执行效率下降，如 lrange、hgetall 等时间复杂度为 O(n) 的命令</li>
-<li>对 BigKey 执行读请求，会使 Redis 实例的带宽被占满，影响服务性能</li>
-<li>对 BigKey 执行删除操作，易造成主库较长时间的阻塞，进而可能引发同步中断或主从切换</li>
+<li><p>大量占用内存，引发操作阻塞或重要的 key被逐出，甚至引发内存溢出</p>
+</li>
+<li><p>集群架构下，某个数据分片的内存使用率远超其他数据分片，无法使数据分片的内存资源达到均衡</p>
+</li>
+<li><p>命令执行效率下降，如 lrange、hgetall 等时间复杂度为 O(n) 的命令</p>
+</li>
+<li><p>对 BigKey 执行读请求，会使 Redis 实例的带宽被占满，影响服务性能</p>
+</li>
+<li><p>对 BigKey 执行删除操作，易造成主库较长时间的阻塞，进而可能引发同步中断或主从切换</p>
+</li>
 </ul>
 <p>如何定位 BigKey：</p>
 <ul>
-<li>通过 redis-cli 的 bigkeys 参数查找 BigKey</li>
-<li>通过 Redis 内置命令 DEBUG OBJECT、MEMORY USAGESTRLEN、LLEN 等对目标 Key 进行分析</li>
-<li>使用第三方工具redis-rdb-tools，使用过程中会先使用 bgsave 命令dump一个rdb 镜像，然后对这个镜像进行分析</li>
+<li><p>通过 redis-cli 的 bigkeys 参数查找 BigKey</p>
+</li>
+<li><p>通过 Redis 内置命令 DEBUG OBJECT、MEMORY USAGESTRLEN、LLEN 等对目标 Key 进行分析</p>
+</li>
+<li><p>使用第三方工具redis-rdb-tools，使用过程中会先使用 bgsave 命令dump一个rdb 镜像，然后对这个镜像进行分析</p>
+</li>
 </ul>
 <p>我们可以参考以下几种方案来解决 BigKey 的问题。</p>
-<p>第一，尝试压缩 value。</p>
-<p>第二，将 BigKey 拆分成多个小 key。</p>
-<p>第三，对 BigKey 进行清理，迁移到其它更适合的存储中。</p>
-<p>第四，对集合中的过期数据进行定期清理。</p>
-<p>第五，删除 BigKey 时，使用 redis4.0 新特性，非阻塞删除。</p>
+<ul>
+<li><p>尝试压缩 value。</p>
+</li>
+<li><p>将 BigKey 拆分成多个小 key</p>
+</li>
+<li><p>对 BigKey 进行清理，迁移到其它更适合的存储中</p>
+</li>
+<li><p>对集合中的过期数据进行定期清理</p>
+</li>
+<li><p>删除 BigKey 时，使用 redis4.0 新特性，非阻塞删除</p>
+</li>
+</ul>
 <h1 id="HotKey"><a href="#HotKey" class="headerlink" title="HotKey"></a>HotKey</h1><p>HotKey 是指 Redis 中访问频率特别高的 key。在秒杀、爆款商品、爆款新闻等场景中经常会出现 HotKey，可能导致以下问题：</p>
 <ul>
-<li>占用 Redis server 端大量的 CPU 资源，导致整体性能下降</li>
-<li>如果是集群架构，会产生访问倾斜，某个内存分片被大量访问，可能导致该分片出现连接数耗尽、性能下降等问题</li>
-<li>增加网络流量，可能导致网路阻塞</li>
-<li>出现缓存击穿现象，导致数据库压力突增，影响其它业务</li>
-<li>访问量超出 Redis server 上限，导致服务崩溃，进一步导致缓存雪崩</li>
+<li><p>占用 Redis server 端大量的 CPU 资源，导致整体性能下降</p>
+</li>
+<li><p>如果是集群架构，会产生访问倾斜，某个内存分片被大量访问，可能导致该分片出现连接数耗尽、性能下降等问题</p>
+</li>
+<li><p>增加网络流量，可能导致网路阻塞</p>
+</li>
+<li><p>出现缓存击穿现象，导致数据库压力突增，影响其它业务</p>
+</li>
+<li><p>访问量超出 Redis server 上限，导致服务崩溃，进一步导致缓存雪崩</p>
+</li>
 </ul>
 <p>如何定位 HotKey：</p>
 <ul>
-<li>通过 redis-cli 的 hotkeys 参数查找 HotKey</li>
-<li>在业务层增加相应的代码对 Redis 的访问进行监控分析</li>
-<li>通过 MONITOR 命令找出 HotKey</li>
+<li><p>通过 redis-cli 的 hotkeys 参数查找 HotKey</p>
+</li>
+<li><p>在业务层增加相应的代码对 Redis 的访问进行监控分析</p>
+</li>
+<li><p>通过 MONITOR 命令找出 HotKey</p>
+</li>
 </ul>
-<p>我们可以参考以下几种方案来解决 HotKey 的问题。</p>
-<p>第一，可以增加本地缓存，来降低 HotKey 的访问频率。不过这种方案会面临缓存不一致、消耗本地内存的问题。</p>
-<p>第二，对 HotKey 进行复制，比如将 HotKey foo 复制出 3 个内容完全一样的 key 并名为 foo2、foo3、foo4。该方案的缺点在于需要联动修改代码，同时也有数据一致性的问题（由原来更新一个 key 演变为需要更新多个 key）。</p>
-<p>第三，在客户端和 Redis server 间接入 proxy 层，通过 proxy 实现读写分离以及读流量在多个从节点间的负载均衡。在请求量极大的场景下，读写分离架构会产生不可避免的延迟，此时会有读取到脏数据的问题。</p>
-<p>第四，同样是接入 proxy 层，但 proxy 在这里承担缓存 HotKey 查询结果的职责。类似方案一，改进的地方是对业务层是透明的。</p>
-<p>第五，以上主要是针对读请求热点 key，如果是写请求过多，则考虑通过将一个 key 改成逻辑上的多个 key 来实现。</p>
+<p>我们可以参考以下几种方案来解决 HotKey 的问题：</p>
+<ul>
+<li><p>可以增加本地缓存，来降低 HotKey 的访问频率。不过这种方案会面临缓存不一致、消耗本地内存的问题。</p>
+</li>
+<li><p>实现读写分离以及读流量在多个从节点间的负载均衡。在请求量极大的场景下，读写分离架构会产生不可避免的延迟，此时会有读取到脏数据的问题</p>
+</li>
+<li><p>对 HotKey 进行复制，比如将 HotKey foo 复制出 3 个内容完全一样的 key 并名为 foo2、foo3、foo4。该方案的缺点在于需要联动修改代码，同时也有数据一致性的问题（由原来更新一个 key 演变为需要更新多个 key）</p>
+</li>
+<li><p>接入 proxy，在 proxy 层实现缓存或读写分离的功能。类似方案 1 和方案 2，改进的地方是对业务层是透明的</p>
+</li>
+</ul>
+<p>以上主要是针对读请求热点 key，如果是写请求过多，则考虑一下方案：</p>
+<ul>
+<li><p>通过将一个 key 改成逻辑上的多个 key 来实现</p>
+</li>
+<li><p>在内存中操作，按一定周期写回 redis</p>
+</li>
+<li><p>在写 redis 时进行限流</p>
+</li>
+</ul>
 <h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文总结了 Redis 作为缓存的常见问题及解决方案，不同的业务场景下可能会面临不同的问题，可以采取的方案也不尽相同。可以遵循一个原则进行选择，“能满足需求的前提下，最简单的系统就是最好的系统”。</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><ol>
 <li><a target="_blank" rel="noopener" href="https://time.geekbang.org/column/article/328981">分布式缓存如何与本地缓存配合，提高系统性能？</a></li>
